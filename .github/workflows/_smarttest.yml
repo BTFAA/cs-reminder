@@ -1,5 +1,6 @@
 name: smarttest
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -19,8 +20,8 @@ jobs:
           : > smarttest-out.txt
           while IFS= read -r q; do
             [ -z "$q" ] && continue
-            { echo "##### 发：$q #####"; timeout 200 python run.py --ask "$q" 2>&1 | head -40; echo; } >> smarttest-out.txt
-          done << 'EOF'
+            { echo "##### 发：$q #####"; timeout 220 python run.py --ask "$q" 2>&1 | head -40; echo; } >> smarttest-out.txt
+          done << 'QQEOF'
 帮助
 天禄
 donk
@@ -30,7 +31,7 @@ tlyoo
 世界排名
 对比 donk ZywOo
 小蜜蜂什么时候比赛
-EOF
+QQEOF
           cat smarttest-out.txt
       - name: commit
         run: |
