@@ -1,0 +1,148 @@
+{
+  "_说明": "CS2 赛事提醒配置。改完直接生效，无需重启。",
+  "teams": [
+    {
+      "name": "TYLOO",
+      "cn": "天禄",
+      "aliases": [
+        "tyloo",
+        "天禄"
+      ]
+    },
+    {
+      "name": "Vitality",
+      "cn": "小蜜蜂",
+      "aliases": [
+        "vitality",
+        "team vitality",
+        "小蜜蜂",
+        "vit",
+        "vita"
+      ]
+    },
+    {
+      "name": "Team Spirit",
+      "cn": "绿龙",
+      "aliases": [
+        "spirit",
+        "team spirit",
+        "绿龙",
+        "雪碧"
+      ]
+    }
+  ],
+  "sources": {
+    "pandascore": {
+      "enabled": true,
+      "token": "",
+      "videogame": "csgo",
+      "_说明": "免费 token 申请：https://app.pandascore.co/signup 注册后在 Account 页复制 token 填到这里",
+      "lookahead_days": 14,
+      "recent_days": 7
+    },
+    "fiveplay": {
+      "enabled": true,
+      "news_limit": 6
+    },
+    "steam": {
+      "enabled": true,
+      "news_limit": 3
+    },
+    "blasttv": {
+      "enabled": true,
+      "max_tournaments": 20,
+      "_说明": "BLAST.tv 官方赛事页，免注册免密钥，国内可直连。PandaScore 作为补充（可选）"
+    }
+  },
+  "notify": {
+    "_说明": "可同时开多个通道，enabled=true 的都会发",
+    "channels": [
+      {
+        "type": "qqofficial",
+        "enabled": true,
+        "appId": "",
+        "clientSecret": "",
+        "_说明": "官方QQ机器人。appId/clientSecret 在 q.qq.com 机器人「开发设置」页；channel_id 用 run.bat --qq-discover 自动查",
+        "_管理员QQ": "1905702095",
+        "user_openid": "",
+        "group_openid": ""
+      },
+      {
+        "type": "qqbot",
+        "enabled": false,
+        "api": "http://127.0.0.1:3000",
+        "access_token": "",
+        "user_id": "1905702095",
+        "group_id": "",
+        "_说明": "QQ 号填你自己的；如果想让机器人发到群，填 group_id。token 是 NapCat 里设置的"
+      },
+      {
+        "type": "qqmail",
+        "enabled": false,
+        "smtp_host": "smtp.qq.com",
+        "smtp_port": 465,
+        "user": "",
+        "authcode": "",
+        "to": ""
+      },
+      {
+        "type": "pushplus",
+        "enabled": false,
+        "token": "8b04c4e5e3c14b4aa342989270460d2b"
+      },
+      {
+        "type": "wecom",
+        "enabled": false,
+        "webhook": ""
+      },
+      {
+        "type": "wxpusher",
+        "enabled": false,
+        "appToken": "",
+        "uids": []
+      },
+      {
+        "type": "serverchan",
+        "enabled": false,
+        "sendkey": ""
+      }
+    ]
+  },
+  "rules": {
+    "remind_hours_before": [],
+    "max_matches_per_push": 10,
+    "quiet_hours": [
+      1,
+      8
+    ],
+    "include_news": true,
+    "max_news_in_message": 8,
+    "include_team_schedule": true,
+    "_说明_定时": "空数组 = 不做任何定时自动推送，只响应 QQ 里的「赛事推送」指令"
+  },
+  "output": {
+    "timezone": "Asia/Shanghai",
+    "log_file": "logs/cs-reminder.log"
+  },
+  "commands": {
+    "triggers": [
+      "赛事推送",
+      "赛程",
+      "今日赛程",
+      "今天比赛"
+    ],
+    "team_keys": [
+      "查询战队数据",
+      "战队数据",
+      "查战队",
+      "战队查询"
+    ],
+    "player_keys": [
+      "查询选手数据",
+      "选手数据",
+      "查选手",
+      "选手查询"
+    ],
+    "_说明": "在 QQ 里 @机器人 说这些话"
+  }
+}

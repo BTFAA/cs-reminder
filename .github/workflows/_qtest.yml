@@ -1,0 +1,30 @@
+name: qtest
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 查询战队和选手
+        env:
+          QQ_APPID: ${{ secrets.QQ_APPID }}
+          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+        run: |
+          set -x
+          { echo '########## 查询战队数据 天禄 ##########'; python run.py --team 天禄; } > qtest-out.txt 2>&1 || true
+          { echo; echo '########## 查询战队数据 绿龙 ##########'; python run.py --team 绿龙; } >> qtest-out.txt 2>&1 || true
+          { echo; echo '########## 查询选手数据 donk ##########'; python run.py --player donk; } >> qtest-out.txt 2>&1 || true
+          cat qtest-out.txt
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add qtest-out.txt
+          git commit -m "qtest" || true
+          git push || true

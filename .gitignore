@@ -1,0 +1,6 @@
+data/
+logs/
+samples/
+__pycache__/
+*.pyc
+config.json.bak
