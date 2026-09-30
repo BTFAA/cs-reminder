@@ -86,19 +86,50 @@ JINA_HEADERS = {
 }
 
 
+def _curl_get(url: str, timeout: int = 90):
+    """用系统 curl 抓取。
+
+    r.jina.ai 对 urllib 的请求返回 403，对 curl 正常，所以优先走 curl。
+    （GitHub Actions 的 ubuntu 和 Windows 10+ 都自带 curl）
+    """
+    import shutil
+    import subprocess
+    exe = shutil.which("curl") or shutil.which("curl.exe")
+    if not exe:
+        return None
+    cmd = [exe, "-sL", "--compressed", "-m", str(timeout),
+           "-A", JINA_HEADERS["User-Agent"],
+           "-H", "Accept: " + JINA_HEADERS["Accept"],
+           "-H", "Accept-Language: " + JINA_HEADERS["Accept-Language"],
+           "-H", "X-Return-Format: markdown",
+           url]
+    try:
+        r = subprocess.run(cmd, capture_output=True, timeout=timeout + 15)
+    except Exception:
+        return None
+    if r.returncode != 0 or not r.stdout:
+        return None
+    return r.stdout.decode("utf-8", "replace")
+
+
 def _jina(path_or_url: str, retries: int = 3) -> str:
-    """通过 r.jina.ai 取 HLTV 页面。遇到验证码自动重试。"""
+    """通过 r.jina.ai 取 HLTV 页面。先用 curl，失败再退回 urllib。"""
     url = path_or_url if path_or_url.startswith("http") else HLTV + path_or_url
+    target = JINA + url
     last = ""
     for i in range(retries):
-        try:
-            txt = web.request(JINA + url, timeout=90, retries=1, headers=JINA_HEADERS)
-            if CAPTCHA_HINT not in txt and "Just a moment" not in txt[:200]:
-                return txt
-            last = "HLTV 返回了人机验证页"
-        except Exception as e:
-            last = "%s: %s" % (type(e).__name__, str(e)[:120])
-        time.sleep(3 + i * 4)
+        txt = _curl_get(target, 90)
+        if txt is None:
+            try:
+                txt = web.request(target, timeout=90, retries=1, headers=JINA_HEADERS)
+            except Exception as e:
+                last = "curl 与 urllib 均失败：%s: %s" % (type(e).__name__, str(e)[:100])
+                time.sleep(3 + i * 4)
+                continue
+        if CAPTCHA_HINT not in txt and "Just a moment" not in txt[:300]:
+            return txt
+        last = "HLTV 返回了人机验证页"
+        time.sleep(4 + i * 5)
     raise RuntimeError("抓取 HLTV 失败（%s）" % last)
 
 
@@ -111,6 +142,7 @@ def ranking(force: bool = False) -> list:
             return c
 
     txt = _jina("ranking/teams")
+    _ids = _cache_get("hltv_player_ids.json", 86400 * 30) or {}
     out = []
     # 按 "#N ... Team(NN HLTV points)" 分块
     marks = [(m.start(), int(m.group(1))) for m in re.finditer(r"\n#(\d+)\s", txt)]
@@ -125,6 +157,8 @@ def ranking(force: bool = False) -> list:
         name, points = pm.group(1).strip(), int(pm.group(2))
         lm = RE_TEAM_LINK.search(blk)
         roster = [p for p in re.findall(r"hltv\.org/player/\d+/([a-z0-9\-]+)\)", blk)][:6]
+        for _pid, _s in re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", blk):
+            _ids.setdefault(_s, _pid)
         out.append({
             "rank": rank, "name": name, "points": points,
             "id": lm.group(1) if lm else "", "slug": lm.group(2) if lm else "",
@@ -138,6 +172,8 @@ def ranking(force: bool = False) -> list:
             continue
         seen.add(k)
         uniq.append(t)
+    if _ids:
+        _cache_put("hltv_player_ids.json", _ids)
     if uniq:
         _cache_put("hltv_ranking.json", uniq)
     return uniq
@@ -227,16 +263,20 @@ def player_stats(slug: str, force: bool = False) -> dict:
 
 
 def _player_id(slug: str) -> str:
-    """HLTV 选手页 URL 需要数字 id，从链接里挖一个。"""
+    """HLTV 选手页 URL 需要数字 id。排名页里带着所有前 30 队的阵容链接，够用。"""
+    slug = slug.strip().lower()
     cached = _cache_get("hltv_player_ids.json", 86400 * 30) or {}
     if slug in cached:
         return cached[slug]
-    try:
-        txt = _jina("players/archive/active")
-        pairs = re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt)
-        for pid, s in pairs:
+    for path in ("ranking/teams", "players/archive/active"):
+        try:
+            txt = _jina(path, retries=2)
+        except Exception:
+            continue
+        for pid, s in re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt):
             cached.setdefault(s, pid)
-        _cache_put("hltv_player_ids.json", cached)
-    except Exception:
-        pass
+        if cached:
+            _cache_put("hltv_player_ids.json", cached)
+        if slug in cached:
+            return cached[slug]
     return cached.get(slug, "")
