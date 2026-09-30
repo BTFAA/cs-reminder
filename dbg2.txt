@@ -1,0 +1,10 @@
+--- A. 默认引擎 ---
+A  6 次全失败  size=5737
+--- B. x-engine: browser ---
+B  6 次全失败  size=5758
+--- C. x-engine: cf-browser-rendering ---
+C  6 次全失败  size=5779
+--- D. 带 Cookie/Referer ---
+D  第2次成功  size=19060
+--- E. 选手页 ---
+E  6 次全失败  size=5749
