@@ -1,0 +1,9 @@
+403|HLTV 首页|https://www.hltv.org/
+403|HLTV 战队排名|https://www.hltv.org/ranking/teams
+403|HLTV TYLOO 页|https://www.hltv.org/team/6667/tyloo
+403|HLTV 选手页|https://www.hltv.org/player/11816/zywoo
+403|HLTV stats|https://www.hltv.org/stats/players
+406|Liquipedia API|https://liquipedia.net/counterstrike/api.php?action=query&meta=siteinfo&format=json
+200|PandaScore|https://api.pandascore.co/
+404|BLAST.tv 排名|https://blast.tv/cs/ranking
+200|5EPlay|https://csgo.5eplay.com/
