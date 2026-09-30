@@ -1,0 +1,27 @@
+name: kwtest
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 智能查询测试
+        run: |
+          : > kwtest-out.txt
+          for q in donk 天禄 绿龙 ZywOo; do
+            { echo "########## 查询 $q ##########"; python run.py --query "$q"; echo; } >> kwtest-out.txt 2>&1
+          done
+          cat kwtest-out.txt
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add kwtest-out.txt
+          git commit -m "kwtest" || true
+          git push || true

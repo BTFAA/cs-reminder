@@ -119,6 +119,7 @@ def _jina(path_or_url: str, retries: int = 8) -> str:
     url = path_or_url if path_or_url.startswith("http") else HLTV + path_or_url
     target = JINA + url
     last = ""
+    net_fail = 0
     for i in range(retries):
         txt = _curl_get(target, 90)
         if txt is None:
@@ -126,7 +127,12 @@ def _jina(path_or_url: str, retries: int = 8) -> str:
                 txt = web.request(target, timeout=90, retries=1, headers=JINA_HEADERS)
             except Exception as e:
                 last = "curl 与 urllib 均失败：%s: %s" % (type(e).__name__, str(e)[:100])
-                time.sleep(3 + i * 4)
+                net_fail += 1
+                # 网络根本不通（比如国内连不上 r.jina.ai）就快速放弃，
+                # 别把 8 次重试全耗光。验证码那种是「通了但内容不对」，才值得多试。
+                if net_fail >= 2:
+                    raise RuntimeError("连不上 r.jina.ai（%s）" % last)
+                time.sleep(2)
                 continue
         if CAPTCHA_HINT not in txt and "Just a moment" not in txt[:300]:
             return txt

@@ -142,12 +142,38 @@ def _schedule_only(cfg):
 
 
 def _extract_name(text: str, keys) -> str:
-    """从「查询战队数据 天禄」里抠出「天禄」。"""
+    """从「查询战队数据 天禄」「查询天禄」里抠出「天禄」。"""
     s = text or ""
     for k in sorted(set(keys), key=len, reverse=True):
         s = s.replace(k, " ")
-    s = re.sub(r"(查询|查一下|查|看看|看一下|一下|的数据|数据|战队|队伍|选手|队员|的)", " ", s)
     return re.sub(r"[\s,，。！!？?@#:：\-]+", "", s).strip()
+
+
+# 自动判断：先当战队找（快），找不到再当选手找
+def _auto_cmd(cfg, name: str) -> str:
+    from .sources import blastteams
+    if not name:
+        return ("要查什么？这样发：\n\n"
+                "  查询 donk      → 选手数据\n"
+                "  查询 天禄       → 战队数据\n"
+                "  查询 ZywOo     → 选手数据")
+    # ① 先精确当战队找
+    try:
+        r = blastteams.find_team(cfg, name, strict=True)
+    except TypeError:
+        r = blastteams.find_team(cfg, name)
+    if r:
+        return _team_cmd(cfg, name)
+    # ② 再当选手找
+    try:
+        p = blastteams.find_player(cfg, name)
+    except Exception:
+        p = None
+    if p:
+        return _player_cmd(cfg, name)
+    return ("没查到「%s」😕\n\n"
+            "· 战队试试：天禄 / 小蜜蜂 / 绿龙 / TYLOO / Vitality / Spirit\n"
+            "· 选手试试：donk / ZywOo / Jee / sh1ro" % name)
 
 
 def _hltv_rank(cfg, name):
@@ -225,15 +251,17 @@ def qq_listen_cmd(cfg, args):
 
     cmds = cfg.raw.get("commands") or {}
     triggers = [t for t in (cmds.get("triggers") or ["赛事推送", "赛程"]) if t]
-    team_keys = [t for t in (cmds.get("team_keys") or ["查询战队数据", "战队数据"]) if t]
-    player_keys = [t for t in (cmds.get("player_keys") or ["查询选手数据", "选手数据"]) if t]
+    team_keys = [t for t in (cmds.get("team_keys") or ["战队数据", "战队"]) if t]
+    player_keys = [t for t in (cmds.get("player_keys") or ["选手数据", "选手"]) if t]
+    query_keys = [t for t in (cmds.get("query_keys") or ["查询", "查一下", "查"]) if t]
 
     print("=" * 62)
     print("  指令监听已启动")
     print()
     print("  【当天赛程】" + "、".join(triggers))
-    print("  【战队数据】" + "、".join(team_keys) + "  + 队名")
-    print("  【选手数据】" + "、".join(player_keys) + "  + 选手ID")
+    print("  【智能查询】" + "、".join(query_keys) + "  + 名字  （自动判断战队还是选手）")
+    print("  【指定战队】" + "、".join(team_keys) + "  + 队名")
+    print("  【指定选手】" + "、".join(player_keys) + "  + 选手ID")
     print()
     print("  用法：在 QQ 里私聊机器人，或在群里 @机器人")
     print()
@@ -254,20 +282,29 @@ def qq_listen_cmd(cfg, args):
 
     def handle(text, kind, target):
         low = (text or "").lower()
+        allkeys = list(triggers) + list(query_keys) + list(team_keys) + list(player_keys)
 
-        # ① 选手数据
-        for k in player_keys:
+        # ① 明确说「选手」→ 只查选手
+        for k in sorted(player_keys, key=len, reverse=True):
             if k.lower() in low:
-                name = _extract_name(text, player_keys + triggers + team_keys)
+                name = _extract_name(text, allkeys)
                 return _cached("p:" + name, lambda: _player_cmd(cfg, name), 600)
 
-        # ② 战队数据
-        for k in team_keys:
+        # ② 明确说「战队」→ 只查战队
+        for k in sorted(team_keys, key=len, reverse=True):
             if k.lower() in low:
-                name = _extract_name(text, team_keys + triggers + player_keys)
+                name = _extract_name(text, allkeys)
                 return _cached("t:" + name, lambda: _team_cmd(cfg, name), 600)
 
-        # ③ 当天赛程
+        # ③ 只说「查询 xxx」→ 自动判断是战队还是选手
+        for k in sorted(query_keys, key=len, reverse=True):
+            if k.lower() in low:
+                name = _extract_name(text, allkeys)
+                if not name:
+                    continue
+                return _cached("q:" + name, lambda: _auto_cmd(cfg, name), 600)
+
+        # ④ 当天赛程
         if any(t.lower() in low for t in triggers):
             return _cached("day", _day_report, 300)
 
@@ -556,6 +593,7 @@ def main(argv=None):
                     help="列出 QQ 机器人所在的频道和子频道 ID")
     ap.add_argument("--qq-capture", action="store_true",
                     help="连接 QQ 机器人网关，抓取群 / 单聊的 openid")
+    ap.add_argument("--query", metavar="名字", help="智能查询：自动判断是战队还是选手（调试用）")
     ap.add_argument("--team", metavar="队名", help="直接输出某支战队的报告（调试用）")
     ap.add_argument("--player", metavar="选手", help="直接输出某位选手的报告（调试用）")
     ap.add_argument("--listen", action="store_true",
@@ -577,6 +615,9 @@ def main(argv=None):
         return qq_discover(cfg)
     if args.qq_capture:
         return qq_capture_cmd(cfg, args)
+    if args.query:
+        print(_auto_cmd(cfg, args.query))
+        return 0
     if args.team:
         print(_team_cmd(cfg, args.team))
         return 0

@@ -112,8 +112,8 @@ def load_team_index(force: bool = False) -> dict:
     return found
 
 
-def find_team(cfg, query: str):
-    """按队名找战队，返回 {"id","slug","name"} 或 None。"""
+def find_team(cfg, query: str, strict: bool = False):
+    """按队名找战队。strict=True 时只认精确匹配（给「查询 xxx」自动判断用）。"""
     q = (query or "").strip().lower()
     if not q:
         return None
@@ -138,6 +138,8 @@ def find_team(cfg, query: str):
                     if slug == want or slug.replace("-", "") == want.replace("-", ""):
                         return dict(v, name=slug)
     # 3) 模糊包含
+    if strict:
+        return None
     cands = [(slug, v) for slug, v in idx.items()
              if q in slug.replace("-", " ") or slug.replace("-", " ") in q]
     if cands:
