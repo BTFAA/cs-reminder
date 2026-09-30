@@ -1,0 +1,11 @@
+403|5805|HLTV 排名页| ranking
+403|5744|HLTV 首页|
+403|5747|HLTV RSS|
+403|5756|HLTV stats|
+200|12760|bo3.gg 排名|
+404|80309|dust2.dk 排名|
+404|175168|escharts 排名| ranking vitality
+403|5803|escorenews 排名| ranking
+404|3251|csgo.com 排名|
+403|2059|Liquipedia 队伍|
+404|384059|5EPlay 排名页|
