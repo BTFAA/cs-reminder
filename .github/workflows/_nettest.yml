@@ -1,0 +1,21 @@
+name: nettest
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 测试各站可达性
+        run: |
+          test() {
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 25 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "$2" || echo ERR)
+            echo "$code  $1"
+          }
+          test "HLTV 首页"        "https://www.hltv.org/"
+          test "HLTV 排名"        "https://www.hltv.org/ranking/teams"
+          test "HLTV TYLOO 队页"  "https://www.hltv.org/team/6667/tyloo"
+          test "HLTV 选手页"      "https://www.hltv.org/player/11816/zywoo"
+          test "Liquipedia API"   "https://liquipedia.net/counterstrike/api.php?action=query&meta=siteinfo&format=json"
+          test "PandaScore"       "https://api.pandascore.co/"
+          test "BLAST.tv 排名"    "https://blast.tv/cs/ranking"
+          test "BLAST.tv 战队页"  "https://blast.tv/cs/team/1cdfe400-4a5d-4c90-952b-979649cd980f/tyloo"
+          test "5EPlay"           "https://csgo.5eplay.com/"
