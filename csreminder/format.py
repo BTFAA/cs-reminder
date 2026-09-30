@@ -36,6 +36,24 @@ def fmt_time(cfg, iso: str) -> str:
     return "%d月%d日 %s %02d:%02d" % (d.month, d.day, WEEK[d.weekday()], d.hour, d.minute)
 
 
+def humanize_hours(h) -> str:
+    """把小时数变成人话：2.5 -> 「2小时30分」。"""
+    if h is None:
+        return ""
+    if h < 0:
+        return "已开始"
+    hh = int(h)
+    mm = int(round((h - hh) * 60))
+    if mm == 60:
+        hh, mm = hh + 1, 0
+    if hh >= 24:
+        d, rest = hh // 24, hh % 24
+        return ("%d天%d小时" % (d, rest)) if rest else ("%d天" % d)
+    if hh:
+        return ("%d小时%d分" % (hh, mm)) if mm else ("%d小时" % hh)
+    return "%d分钟" % mm
+
+
 def hours_until(iso: str, cfg) -> float | None:
     dt = parse_dt(iso)
     if not dt:
@@ -411,3 +429,137 @@ def build_player_report(cfg, player: dict, team: dict = None, hltv: dict = None)
 
     L.append("— 数据来源：BLAST.tv 官方")
     return "\n".join(L)
+
+
+# ============================================================ 智能回复
+
+
+def build_ranking_report(cfg, rows, top: int = 10) -> str:
+    """HLTV 世界排名。"""
+    if not rows:
+        return "暂时取不到世界排名 😕（HLTV 抓取失败，稍后再试）"
+    rows = sorted(rows, key=lambda x: x.get("rank", 999))
+    L = ["🏆 HLTV 世界排名（前 %d）" % min(top, len(rows)), ""]
+    for r in rows[:top]:
+        cn = _team_cn(cfg, r.get("name", ""))
+        name = r.get("name", "?")
+        if cn:
+            name = "%s（%s）" % (name, cn)
+        L.append("  #%-3s %-22s %s 分" % (r.get("rank", "?"), name, r.get("points", "?")))
+    L.append("")
+
+    # 关注队伍排到多少
+    mine = []
+    for t in cfg.teams:
+        for r in rows:
+            if t.matches(r.get("name", "")):
+                mine.append("%s #%s" % (t.label, r.get("rank")))
+                break
+    if mine:
+        L.append("关注队伍：" + " · ".join(mine))
+        L.append("")
+    L.append("— 数据来源：HLTV")
+    return "\n".join(L)
+
+
+def build_compare_report(cfg, items) -> str:
+    """两个选手并排对比。items 是 [{player, hltv}, ...]"""
+    items = [x for x in items if x and x.get("hltv")]
+    if len(items) < 2:
+        return ("需要两个能查到数据的选手，比如：\n\n"
+                "  对比 donk ZywOo\n"
+                "  对比 sh1ro m0NESY")
+    a, b = items[0], items[1]
+    pa, pb = a["player"], b["player"]
+    ha, hb = a["hltv"], b["hltv"]
+
+    L = ["⚖️ 选手对比", ""]
+    L.append("  %-12s %-18s %-18s" % ("", pa.get("name", "?"), pb.get("name", "?")))
+    L.append("  " + "-" * 50)
+
+    def row(label, va, vb):
+        L.append("  %-12s %-18s %-18s" % (label, str(va)[:17], str(vb)[:17]))
+
+    row("战队", pa.get("team", "?"), pb.get("team", "?"))
+    row("国籍", cn_country(pa.get("country")), cn_country(pb.get("country")))
+    row("真名", pa.get("real") or "-", pb.get("real") or "-")
+    row("年龄", ("%s 岁" % ha["age"]) if ha.get("age") else "-",
+        ("%s 岁" % hb["age"]) if hb.get("age") else "-")
+    row("生涯奖金", ("$" + ha["prize"]) if ha.get("prize") else "-",
+        ("$" + hb["prize"]) if hb.get("prize") else "-")
+    if ha.get("top20") or hb.get("top20"):
+        fmt = lambda h: "、".join("第%d(%s)" % (x["rank"], x["year"]) for x in (h.get("top20") or [])) or "-"
+        row("Top20", fmt(ha), fmt(hb))
+
+    L.append("  " + "-" * 50)
+    row("Rating", ha.get("rating") or "-", hb.get("rating") or "-")
+
+    sa = {x["name"]: x["score"] for x in (ha.get("sub") or [])}
+    sb = {x["name"]: x["score"] for x in (hb.get("sub") or [])}
+    for k in ("Firepower", "Opening", "Clutching", "Sniping", "Utility", "Entrying", "Trading"):
+        if k in sa or k in sb:
+            va, vb = sa.get(k), sb.get(k)
+            mark_a = " ★" if (va is not None and vb is not None and va > vb) else ""
+            mark_b = " ★" if (va is not None and vb is not None and vb > va) else ""
+            row(k, ("%s%s" % (va, mark_a)) if va is not None else "-",
+                ("%s%s" % (vb, mark_b)) if vb is not None else "-")
+
+    L.append("")
+    L.append("★ = 该项更强")
+    L.append("— 数据来源：BLAST.tv + HLTV")
+    return "\n".join(L)
+
+
+def build_result_report(cfg, results, title=None) -> str:
+    """赛后战报。results: [{date, team, opponent, score, win, tournament}]"""
+    if not results:
+        return ""
+    L = [title or "📢 赛后战报", ""]
+    for r in results:
+        tag = "✅ 胜" if r.get("win") is True else ("❌ 负" if r.get("win") is False else "➖ 平/未定")
+        L.append("%s  %s" % (tag, r.get("headline", "")))
+        for extra in r.get("lines", []):
+            L.append("    " + extra)
+        L.append("")
+    L.append("— 数据来源：BLAST.tv 官方")
+    return "\n".join(L)
+
+
+def build_record_line(results, team_label: str) -> str:
+    """近 N 场战绩一行。results 已按时间倒序。"""
+    if not results:
+        return ""
+    w = sum(1 for r in results if r.get("win") is True)
+    l = sum(1 for r in results if r.get("win") is False)
+    return "%s：近 %d 场 %d 胜 %d 负" % (team_label, len(results), w, l)
+
+
+HELP_TEXT = """🤖 CS2 赛事助手 · 我能做什么
+
+【查赛程】
+  赛事推送 / 赛程 / 今天比赛
+  天禄下一场打谁
+  绿龙什么时候比赛
+
+【查战队】
+  天禄 / 绿龙 / 小蜜蜂 / TYLOO / Vitality
+  查询 天禄
+
+【查选手】
+  donk / ZywOo / Jee / sh1ro
+  查询 donk
+
+【排行榜】
+  世界排名 / 前十 / 排行榜
+
+【对比】
+  对比 donk ZywOo
+
+【战绩】
+  绿龙最近赢了吗 / 天禄战绩
+
+【追问】
+  问过一次后可以直接说「那他们下一场呢」
+
+—— 打错字也能认：tlyoo、tianlu、DONK
+"""

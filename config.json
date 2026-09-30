@@ -6,7 +6,10 @@
       "cn": "天禄",
       "aliases": [
         "tyloo",
-        "天禄"
+        "天禄",
+        "tianlu",
+        "tian lu",
+        "tlyoo"
       ]
     },
     {
@@ -17,7 +20,9 @@
         "team vitality",
         "小蜜蜂",
         "vit",
-        "vita"
+        "vita",
+        "xiaomifeng",
+        "xiao mi feng"
       ]
     },
     {
@@ -27,7 +32,11 @@
         "spirit",
         "team spirit",
         "绿龙",
-        "雪碧"
+        "雪碧",
+        "lvlong",
+        "lvlolong",
+        "lv long",
+        "long"
       ]
     }
   ],
@@ -146,6 +155,17 @@
       "选手",
       "队员"
     ],
-    "_说明": "在 QQ 里 @机器人 说：查询 donk / 查询 天禄 / 赛事推送"
+    "ranking_keys": [
+      "世界排名",
+      "排行榜",
+      "排名",
+      "前十"
+    ],
+    "compare_keys": [
+      "对比",
+      "比较"
+    ],
+    "context_ttl_seconds": 1800,
+    "_说明": "免前缀直接说名字即可；自然问句也认。改这里可以加自己的说法。"
   }
 }

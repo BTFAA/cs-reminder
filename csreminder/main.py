@@ -8,7 +8,12 @@ import time
 import os
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
 
 from . import config as cfgmod
 from . import format as fmtmod
@@ -176,6 +181,266 @@ def _auto_cmd(cfg, name: str) -> str:
             "· 选手试试：donk / ZywOo / Jee / sh1ro" % name)
 
 
+def _match_involves(cfg, name: str, match: dict) -> bool:
+    """这场比赛是否和 name 有关（队名/别名/中文绰号）。"""
+    from .sources import blastteams as _bt
+    r = None
+    try:
+        r = _bt.find_team(cfg, name, strict=True)
+    except TypeError:
+        r = _bt.find_team(cfg, name)
+    target = (r["slug"] if r else name).lower().replace("-", "")
+    blob = ((match.get("team_a") or "") + " " + (match.get("team_b") or "") +
+            " " + (match.get("teams") and " ".join(match["teams"]) or "")).lower()
+    if target and target in blob.replace("-", "").replace(" ", ""):
+        return True
+    for t in cfg.teams:
+        if t.matches(name) and t.matches(blob):
+            return True
+    return False
+
+
+def _next_matches(cfg, name: str) -> str:
+    """某人/某队的下一场比赛。"""
+    ps = _schedule_only(cfg)
+    if not ps.get("ok"):
+        return "赛程暂时取不到：%s" % (ps.get("error") or "未知错误")[:120]
+    ups = [x for x in (ps.get("upcoming") or []) if _match_involves(cfg, name, x)]
+    ups.sort(key=lambda x: x.get("begin_at") or "")
+    if not ups:
+        return "「%s」近期没有已排期的比赛 😴" % name
+    L = ["📅 %s 的下一场比赛" % name, ""]
+    for x in ups[:3]:
+        h = fmtmod.hours_until(x.get("begin_at", ""), cfg)
+        tz = ZoneInfo(cfg.tz_name) if ZoneInfo else None
+        dt = fmtmod.parse_dt(x.get("begin_at", ""))
+        when = ""
+        if dt:
+            d = dt.astimezone(tz) if tz else dt
+            when = "%d月%d日 %02d:%02d" % (d.month, d.day, d.hour, d.minute)
+        L.append("  %s%s" % (when, ("（%s后）" % fmtmod.humanize_hours(h)) if h is not None else ""))
+        L.append("    %s vs %s" % (x.get("team_a", "?"), x.get("team_b", "?")))
+        bits = [b for b in [x.get("tournament"), x.get("tier_cn"),
+                            ("BO%s" % x["bo"]) if x.get("bo") else "", x.get("location")] if b]
+        if bits:
+            L.append("    " + " · ".join(bits))
+        L.append("")
+    L.append("— 数据来源：BLAST.tv 官方")
+    return "\n".join(L)
+
+
+def _recent_of_team(cfg, name: str):
+    """抓某队最近比赛（含比分）。返回 (team_dict, [(date, score, opp, win)])"""
+    from .sources import blastteams
+    r = None
+    try:
+        r = blastteams.find_team(cfg, name, strict=True)
+    except TypeError:
+        r = blastteams.find_team(cfg, name)
+    if not r:
+        return {}, []
+    team = blastteams.fetch_team("%s/%s" % (r["id"], r["slug"]))
+    out = []
+    for item in (team.get("recent") or []):
+        try:
+            d, score, opp = item[0], item[1], item[2]
+        except Exception:
+            continue
+        mm = re.match(r"\s*(\d+)\s*:\s*(\d+)", score or "")
+        win = None
+        if mm:
+            a, b = int(mm.group(1)), int(mm.group(2))
+            if a or b:
+                win = a > b
+        out.append({"date": d, "score": score, "opp": opp, "win": win,
+                    "finished": d < _today(cfg)})
+    return team, out
+
+
+def _today(cfg) -> str:
+    tz = ZoneInfo(cfg.tz_name) if ZoneInfo else None
+    return (datetime.now(tz) if tz else datetime.now()).strftime("%Y-%m-%d")
+
+
+def _results_for(cfg, name: str) -> str:
+    """最近战绩。"""
+    team, rl = _recent_of_team(cfg, name)
+    if not rl:
+        return "没查到「%s」的比赛记录 😕" % name
+    done = [x for x in rl if x["finished"]]
+    L = ["📊 %s 近期战绩" % (team.get("name") or name), ""]
+    if done:
+        w = sum(1 for x in done if x["win"] is True)
+        l = sum(1 for x in done if x["win"] is False)
+        L.append("  近 %d 场：%d 胜 %d 负" % (len(done), w, l))
+        L.append("")
+        for x in done[:6]:
+            tag = "✅" if x["win"] is True else ("❌" if x["win"] is False else "➖")
+            L.append("  %s %s  %-8s vs %s" % (tag, x["date"], x["score"], x["opp"]))
+    else:
+        L.append("  还没有已结束的比赛。")
+    up = [x for x in rl if not x["finished"]]
+    if up:
+        L.append("")
+        L.append("  待赛：")
+        for x in up[:3]:
+            L.append("     %s  vs %s" % (x["date"], x["opp"]))
+    L.append("")
+    L.append("— 数据来源：BLAST.tv 官方")
+    return "\n".join(L)
+
+
+def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
+    """一句话 -> 回复。监听器和 --ask 共用这一套。"""
+    from . import context as ctxmod
+    from . import nlu
+
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    last = ctxmod.get(target) if target else {}
+    pi = None
+    try:
+        from .sources import blastteams
+        pi = blastteams.load_player_index(cfg)
+    except Exception:
+        pi = None
+
+    r = nlu.describe(text, cfg, pi, last)
+    intent, kind, name = r["intent"], r["kind"], r["name"]
+
+    if name and kind and target:
+        ctxmod.put(target, kind, name, intent)
+
+    # ---- 帮助 ----
+    if intent == "help":
+        return fmtmod.HELP_TEXT
+
+    # ---- 排行榜 ----
+    if intent == "ranking":
+        try:
+            from .sources import hltv
+            return fmtmod.build_ranking_report(cfg, hltv.ranking())
+        except Exception as e:
+            return "排行榜抓取失败：%s" % str(e)[:120]
+
+    # ---- 对比 ----
+    if intent == "compare":
+        picks = []
+        for cand in (pi or {}).values():
+            pass
+        # 从文本里找出两个名字
+        words = [w for w in re.split(r"[\s,，。!！?？/]+", text) if w]
+        found = []
+        for w in words:
+            k2, n2, _ = nlu.match_entity(w, cfg, pi)
+            if n2 and n2 not in [x[1] for x in found]:
+                found.append((k2, n2))
+        if name and name not in [x[1] for x in found]:
+            found.insert(0, (kind, name))
+        for k2, n2 in found[:2]:
+            try:
+                from .sources import blastteams, hltv
+                rr = None
+                try:
+                    rr = blastteams.find_team(cfg, n2, strict=True)
+                except TypeError:
+                    rr = blastteams.find_team(cfg, n2)
+                if rr:
+                    continue
+                pr = blastteams.find_player(cfg, n2)
+                if pr:
+                    picks.append({"player": pr, "hltv": hltv.player_stats(pr.get("slug") or n2)})
+            except Exception:
+                continue
+        return fmtmod.build_compare_report(cfg, picks)
+
+    # ---- 有实体 ----
+    if name:
+        if intent == "schedule":
+            return _next_matches(cfg, name)
+        if intent == "result":
+            return _results_for(cfg, name)
+        if kind == "player":
+            return _player_cmd(cfg, name)
+        if kind == "team":
+            return _team_cmd(cfg, name)
+        return _auto_cmd(cfg, name)
+
+    # ---- 没实体但有意图 ----
+    if intent == "schedule":
+        return _day_report()
+    if intent == "result":
+        L = ["📊 关注队伍近期战绩", ""]
+        for t in cfg.teams:
+            _tm, rl = _recent_of_team(cfg, t.name)
+            done = [x for x in rl if x["finished"]]
+            if done:
+                L.append("  " + fmtmod.build_record_line(done, t.label))
+        L.append("")
+        L.append("— 数据来源：BLAST.tv 官方")
+        return "\n".join(L)
+
+    # ---- 兜底 ----
+    if is_group:
+        return ""          # 群里不认识的就不吭声，别刷屏
+    return ""
+
+
+def results_cmd(cfg, args) -> int:
+    """赛后战报：关注队伍有新的完赛结果就推送。"""
+    st = statemod.State(os.path.join(BASE_DIR, "data", "state.json"))
+    fresh = []
+
+    for t in cfg.teams:
+        try:
+            team, rl = _recent_of_team(cfg, t.name)
+        except Exception as e:
+            _log(cfg, "  抓 %s 战绩失败：%s" % (t.label, str(e)[:80]))
+            continue
+        for x in rl:
+            if not x["finished"] or x["win"] is None:
+                continue
+            key = "res:%s:%s:%s" % (t.name, x["date"], x["opp"])
+            if st.already_sent(key):
+                continue
+            fresh.append((key, {
+                "date": x["date"],
+                "headline": "%s  %s  %s" % (t.label, x["score"], x["opp"]),
+                "lines": [x["date"]],
+                "win": x["win"],
+            }))
+
+    if not fresh:
+        _log(cfg, "没有新的比赛结果")
+        return 0
+
+    title = "📢 赛后战报 · %s" % _today(cfg)
+    md = fmtmod.build_result_report(cfg, [v for _, v in fresh], title)
+    html = "<h3>%s</h3><pre style=\"font-family:Consolas,monospace;white-space:pre-wrap\">%s</pre>" % (
+        title, md.replace("&", "&amp;").replace("<", "&lt;"))
+
+    if args.dry_run:
+        print(md)
+        return 0
+
+    res = notify.send_all(cfg, title, md, html)
+    ok_any = False
+    for name, ok, msg in res:
+        _log(cfg, "  推送 %s %s: %s" % ("OK " if ok else "FAIL", name, msg))
+        ok_any = ok_any or ok
+    if not ok_any:
+        _log(cfg, "所有通道都失败，本次不标记已发送")
+        return 2
+
+    for k, _ in fresh:
+        st.mark_sent(k, {})
+    st.save()
+    _log(cfg, "已推送 %d 条赛后战报" % len(fresh))
+    return 0
+
+
 def _hltv_rank(cfg, name):
     """拿 HLTV 排名，失败返回 None（不阻塞）。"""
     try:
@@ -258,10 +523,9 @@ def qq_listen_cmd(cfg, args):
     print("=" * 62)
     print("  指令监听已启动")
     print()
-    print("  【当天赛程】" + "、".join(triggers))
-    print("  【智能查询】" + "、".join(query_keys) + "  + 名字  （自动判断战队还是选手）")
-    print("  【指定战队】" + "、".join(team_keys) + "  + 队名")
-    print("  【指定选手】" + "、".join(player_keys) + "  + 选手ID")
+    print("  免前缀直接说名字：「donk」「天禄」「绿龙」")
+    print("  自然问句：「天禄下一场打谁」「绿龙最近赢了吗」")
+    print("  其他：「世界排名」「对比 donk ZywOo」「帮助」")
     print()
     print("  用法：在 QQ 里私聊机器人，或在群里 @机器人")
     print()
@@ -281,34 +545,14 @@ def qq_listen_cmd(cfg, args):
         return val
 
     def handle(text, kind, target):
-        low = (text or "").lower()
-        allkeys = list(triggers) + list(query_keys) + list(team_keys) + list(player_keys)
-
-        # ① 明确说「选手」→ 只查选手
-        for k in sorted(player_keys, key=len, reverse=True):
-            if k.lower() in low:
-                name = _extract_name(text, allkeys)
-                return _cached("p:" + name, lambda: _player_cmd(cfg, name), 600)
-
-        # ② 明确说「战队」→ 只查战队
-        for k in sorted(team_keys, key=len, reverse=True):
-            if k.lower() in low:
-                name = _extract_name(text, allkeys)
-                return _cached("t:" + name, lambda: _team_cmd(cfg, name), 600)
-
-        # ③ 只说「查询 xxx」→ 自动判断是战队还是选手
-        for k in sorted(query_keys, key=len, reverse=True):
-            if k.lower() in low:
-                name = _extract_name(text, allkeys)
-                if not name:
-                    continue
-                return _cached("q:" + name, lambda: _auto_cmd(cfg, name), 600)
-
-        # ④ 当天赛程
-        if any(t.lower() in low for t in triggers):
-            return _cached("day", _day_report, 300)
-
-        return None
+        """所有消息都交给智能层处理。"""
+        is_group = (kind == "group")
+        try:
+            reply = _smart_ask(cfg, text, target, is_group)
+        except Exception as e:
+            print("  处理出错: %s: %s" % (type(e).__name__, str(e)[:150]), flush=True)
+            reply = "出了点小问题，稍后再试 \ud83d\ude48"
+        return reply or None
 
     def _day_report():
         ps = _schedule_only(cfg)
@@ -593,6 +837,8 @@ def main(argv=None):
                     help="列出 QQ 机器人所在的频道和子频道 ID")
     ap.add_argument("--qq-capture", action="store_true",
                     help="连接 QQ 机器人网关，抓取群 / 单聊的 openid")
+    ap.add_argument("--ask", metavar="一句话", help="智能问答：模拟在 QQ 里说一句话（调试用）")
+    ap.add_argument("--results", action="store_true", help="检查关注队伍的比赛结果，有新结果就推送")
     ap.add_argument("--query", metavar="名字", help="智能查询：自动判断是战队还是选手（调试用）")
     ap.add_argument("--team", metavar="队名", help="直接输出某支战队的报告（调试用）")
     ap.add_argument("--player", metavar="选手", help="直接输出某位选手的报告（调试用）")
@@ -615,6 +861,11 @@ def main(argv=None):
         return qq_discover(cfg)
     if args.qq_capture:
         return qq_capture_cmd(cfg, args)
+    if args.ask is not None:
+        print(_smart_ask(cfg, args.ask, "debug"))
+        return 0
+    if args.results:
+        return results_cmd(cfg, args)
     if args.query:
         print(_auto_cmd(cfg, args.query))
         return 0

@@ -1,0 +1,41 @@
+name: smarttest
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 智能问答全量测试
+        env:
+          QQ_APPID: ${{ secrets.QQ_APPID }}
+          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+        run: |
+          : > smarttest-out.txt
+          while IFS= read -r q; do
+            [ -z "$q" ] && continue
+            { echo "##### 发：$q #####"; timeout 200 python run.py --ask "$q" 2>&1 | head -40; echo; } >> smarttest-out.txt
+          done << 'EOF'
+帮助
+天禄
+donk
+tlyoo
+天禄下一场打谁
+绿龙最近赢了吗
+世界排名
+对比 donk ZywOo
+小蜜蜂什么时候比赛
+EOF
+          cat smarttest-out.txt
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add smarttest-out.txt
+          git commit -m "smarttest" || true
+          git push || true
