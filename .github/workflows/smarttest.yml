@@ -1,4 +1,4 @@
-name: smarttest
+name: smarttest2
 on:
   workflow_dispatch:
 permissions:
