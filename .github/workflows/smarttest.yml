@@ -1,5 +1,7 @@
-name: smarttest2
+name: CS2 智能问答自检
 on:
+  schedule:
+    - cron: "0 4 1 1 *"          # 只在每年 1 月 1 日触发一次，纯粹为了占位
   workflow_dispatch:
 permissions:
   contents: write

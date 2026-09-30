@@ -399,8 +399,13 @@ def results_cmd(cfg, args) -> int:
         except Exception as e:
             _log(cfg, "  抓 %s 战绩失败：%s" % (t.label, str(e)[:80]))
             continue
+        today = _today(cfg)
+        same_day_only = cfg.rules.get("results_same_day_only", True)
         for x in rl:
             if not x["finished"] or x["win"] is None:
+                continue
+            # 只报当天的比赛，不翻旧账
+            if same_day_only and x["date"] != today:
                 continue
             key = "res:%s:%s:%s" % (t.name, x["date"], x["opp"])
             if st.already_sent(key):

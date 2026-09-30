@@ -127,7 +127,9 @@
     "include_news": true,
     "max_news_in_message": 8,
     "include_team_schedule": true,
-    "_说明_定时": "空数组 = 不做任何定时自动推送，只响应 QQ 里的「赛事推送」指令"
+    "_说明_定时": "空数组 = 不做任何定时自动推送，只响应 QQ 里的「赛事推送」指令",
+    "results_same_day_only": true,
+    "_说明_赛后战报": "results_same_day_only=true 时只推送当天完赛的结果"
   },
   "output": {
     "timezone": "Asia/Shanghai",
