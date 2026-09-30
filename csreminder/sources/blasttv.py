@@ -137,25 +137,73 @@ def list_tournaments() -> list:
     return sorted(good, key=key)
 
 
+SCHEDULE_TTL = 900          # 赛程缓存 15 分钟
+
+
+def _cache_path():
+    import os
+    from ..config import BASE_DIR
+    d = os.path.join(BASE_DIR, "data")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "schedule.json")
+
+
+def _load_cache():
+    import json
+    import os
+    import time as _t
+    p = _cache_path()
+    try:
+        if _t.time() - os.path.getmtime(p) < SCHEDULE_TTL:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return None
+
+
+def _save_cache(obj):
+    import json
+    try:
+        with open(_cache_path(), "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
 def fetch_all(cfg) -> dict:
     conf = cfg.sources.get("blasttv", {})
     if not conf.get("enabled", True):
         return {"upcoming": [], "past": [], "ok": False, "error": "BLAST.tv 已禁用"}
 
-    max_t = int(conf.get("max_tournaments", 12))
+    if not conf.get("no_cache"):
+        c = _load_cache()
+        if c:
+            return c
+
+    max_t = int(conf.get("max_tournaments", 20))
     slugs = conf.get("tournaments") or list_tournaments()
     if not slugs:
         return {"upcoming": [], "past": [], "ok": False,
                 "error": "BLAST.tv 赛事列表抓取失败"}
 
-    matches, errors = [], []
-    for slug in slugs[:max_t]:
+    # 并行抓，别一个一个等
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(slug):
         try:
             html_text = web.request("%s/cs/tournaments/%s" % (BASE, slug),
                                     referer=LIST_URL, timeout=30, retries=1)
-            matches.extend(_parse(html_text, slug))
+            return _parse(html_text, slug), None
         except Exception as e:
-            errors.append("%s: %s" % (slug, type(e).__name__))
+            return [], "%s: %s" % (slug, type(e).__name__)
+
+    matches, errors = [], []
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        for ms, err in ex.map(one, slugs[:max_t]):
+            matches.extend(ms)
+            if err:
+                errors.append(err)
 
     # 去重
     seen, uniq = set(), []
@@ -171,4 +219,7 @@ def fetch_all(cfg) -> dict:
     if not uniq:
         return {"upcoming": [], "past": [], "ok": False,
                 "error": err or "BLAST.tv 没抓到任何比赛（可能赛事列表为空）"}
-    return {"upcoming": uniq, "past": [], "ok": True, "error": err}
+    out = {"upcoming": uniq, "past": [], "ok": True, "error": err}
+    if not conf.get("no_cache"):
+        _save_cache(out)
+    return out

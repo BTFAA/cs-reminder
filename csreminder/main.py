@@ -411,7 +411,15 @@ def warm_cmd(cfg, args) -> int:
     except Exception as e:
         _log(cfg, "  选手索引失败：%s" % str(e)[:80])
 
-    # 3) HLTV 世界排名 + 选手 ID 表
+    # 3) 赛程表（并行抓 20 个赛事页）
+    t3 = _t.time()
+    try:
+        ps = blasttv.fetch_all(cfg)
+        _log(cfg, "  赛程：%d 场（%.1fs）" % (len(ps.get("upcoming") or []), _t.time() - t3))
+    except Exception as e:
+        _log(cfg, "  赛程预热失败：%s" % str(e)[:80])
+
+    # 4) HLTV 世界排名 + 选手 ID 表
     t2 = _t.time()
     try:
         from .sources import hltv
@@ -420,7 +428,7 @@ def warm_cmd(cfg, args) -> int:
     except Exception as e:
         _log(cfg, "  HLTV 排名失败：%s" % str(e)[:100])
 
-    # 4) 关注队伍的 HLTV 选手数据（这样交互时直接命中缓存）
+    # 5) 关注队伍的 HLTV 选手数据（这样交互时直接命中缓存）
     try:
         from .sources import hltv
         for t in cfg.teams:
