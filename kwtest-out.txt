@@ -1,0 +1,132 @@
+########## 查询 donk ##########
+👤 donk · 选手数据
+
+【基本信息】
+  真名    ：Danil Kryshkovets
+  国籍    ：俄罗斯
+  所属战队：Spirit（绿龙） · 世界第 1 名
+  年龄    ：19 岁
+  生涯奖金：$1,067,716
+  Top20   ：第 1 名（2024）
+  荣誉    ：Major winner x 1、Major MVP x 1
+
+【HLTV 数据】（Past 3 months • 44 maps）
+  Rating    ：1.41
+  Firepower ：100 / 100
+  Entrying  ：70 / 100
+  Trading   ：72 / 100
+  Opening   ：97 / 100
+  Clutching ：55 / 100
+  Sniping   ：0 / 100
+  Utility   ：32 / 100
+
+【队友】
+  zont1x       乌克兰 · Myroslav Plakhotja
+  sh1ro        俄罗斯 · Dmitry Sokolov
+  tN1R         白俄罗斯 · Andrey Tatarinovich
+  magixx       俄罗斯 · Boris Vorobiev
+
+【战队近期比赛】
+  2026-10-03  vs ShindeN          0 : 0
+  2026-09-06  vs MOUZ             3 : 1
+  2026-09-05  vs Team Falcons     2 : 0
+  2026-08-31  vs FURIA            2 : 0
+
+— 数据来源：BLAST.tv 官方
+
+########## 查询 天禄 ##########
+🏆 TYLOO（天禄） · 战队数据
+
+【基本信息】
+  国家    ：中国
+  V社排名 ：第 26 名 V社世界排名（1364 分）
+  HLTV排名：第 33 名（52 分）
+
+【当前阵容】
+  Jee          中国 · Ji Dongkai
+  JamYoung     中国 · Yang Yi
+  zero         中国 · Su Jingshen
+  Mercury      中国 · Wang Jingxiang
+  Moseyuh      中国
+
+【近期比赛】
+  2026-10-03  vs Team Falcons     0 : 0
+
+【参赛赛事】
+  · IEM Cologne Major 2026
+  · Fissure Playground 1 2025
+  · IEM Beijing 2026
+  · PGL Masters Bucharest 2026
+  · ESL Pro League Season 24 2026
+
+— 数据来源：BLAST.tv 官方
+
+########## 查询 绿龙 ##########
+🏆 Spirit（绿龙） · 战队数据
+
+【基本信息】
+  国家    ：俄罗斯
+  V社排名 ：第 1 名 V社世界排名（2031 分）
+  HLTV排名：第 1 名（1000 分）
+
+【当前阵容】
+  zont1x       乌克兰 · Myroslav Plakhotja
+  sh1ro        俄罗斯 · Dmitry Sokolov
+  tN1R         白俄罗斯 · Andrey Tatarinovich
+  magixx       俄罗斯 · Boris Vorobiev
+  donk         俄罗斯 · Danil Kryshkovets
+
+【近期比赛】
+  2026-10-03  vs ShindeN          0 : 0
+  2026-09-06  vs MOUZ             3 : 1
+  2026-09-05  vs Team Falcons     2 : 0
+  2026-08-31  vs FURIA            2 : 0
+  2026-08-28  vs G2               2 : 0
+  2026-08-26  vs DENDELE          2 : 0
+
+【参赛赛事】
+  · Perfect World Shanghai Major 2024 Playoffs
+  · BLAST Premier Open Porto 2026
+  · Esports World Cup 2026 CS2
+  · PGL Astana 2026
+  · BLAST Premier Bounty Season 2 2025
+  · IEM Cologne 2025
+
+— 数据来源：BLAST.tv 官方
+
+########## 查询 ZywOo ##########
+👤 ZywOo · 选手数据
+
+【基本信息】
+  真名    ：Mathieu Herbaut
+  国籍    ：法国
+  所属战队：Vitality（小蜜蜂） · 世界第 5 名
+  年龄    ：25 岁
+  生涯奖金：$1,888,326
+  Top20   ：第 1 名（2019）
+  荣誉    ：Major winner x 3、Major MVP x 3
+
+【HLTV 数据】（Past 3 months • 40 maps）
+  Rating    ：1.32
+  Firepower ：96 / 100
+  Entrying  ：49 / 100
+  Trading   ：53 / 100
+  Opening   ：78 / 100
+  Clutching ：92 / 100
+  Sniping   ：86 / 100
+  Utility   ：71 / 100
+
+【队友】
+  flameZ       以色列 · Shahar Shushan
+  mezii        英国 · William Merriman
+  apEX         法国 · Dan Madesclaire
+  ropz         爱沙尼亚 · Robin Kool
+
+【战队近期比赛】
+  2026-10-03  vs 1win             0 : 0
+  2026-09-20  vs Aurora           3 : 1
+  2026-09-20  vs FURIA            2 : 0
+  2026-09-19  vs Aurora           1 : 2
+
+— 数据来源：BLAST.tv 官方
+
