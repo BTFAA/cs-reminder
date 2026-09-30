@@ -82,6 +82,7 @@ JINA_HEADERS = {
                    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
     "Accept": "text/plain,text/markdown,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.google.com/",
     "X-Return-Format": "markdown",
 }
 
@@ -102,6 +103,7 @@ def _curl_get(url: str, timeout: int = 90):
            "-H", "Accept: " + JINA_HEADERS["Accept"],
            "-H", "Accept-Language: " + JINA_HEADERS["Accept-Language"],
            "-H", "X-Return-Format: markdown",
+           "-H", "Referer: https://www.google.com/",
            url]
     try:
         r = subprocess.run(cmd, capture_output=True, timeout=timeout + 15)
@@ -112,7 +114,7 @@ def _curl_get(url: str, timeout: int = 90):
     return r.stdout.decode("utf-8", "replace")
 
 
-def _jina(path_or_url: str, retries: int = 3) -> str:
+def _jina(path_or_url: str, retries: int = 8) -> str:
     """通过 r.jina.ai 取 HLTV 页面。先用 curl，失败再退回 urllib。"""
     url = path_or_url if path_or_url.startswith("http") else HLTV + path_or_url
     target = JINA + url
@@ -129,7 +131,8 @@ def _jina(path_or_url: str, retries: int = 3) -> str:
         if CAPTCHA_HINT not in txt and "Just a moment" not in txt[:300]:
             return txt
         last = "HLTV 返回了人机验证页"
-        time.sleep(4 + i * 5)
+        # r.jina.ai 抓 HLTV 是概率性的，多试几次基本都能过
+        time.sleep(4 + (i % 3) * 4)
     raise RuntimeError("抓取 HLTV 失败（%s）" % last)
 
 
