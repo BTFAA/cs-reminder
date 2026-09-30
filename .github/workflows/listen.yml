@@ -1,0 +1,38 @@
+name: CS2 指令监听（交互式）
+
+# 你 @机器人 说「赛事推送」就回复当天赛程。
+# 原理：这个任务连上 QQ 的 WebSocket 长连接，一直听；每小时重启一次。
+#
+# ⚠️ 请把仓库设为 Public（公开），否则每月 2000 分钟的免费额度会被跑光。
+#    代码里没有任何密钥（密钥在 Secrets 里），公开是安全的。
+
+on:
+  schedule:
+    # 每小时的第 0 分钟启动一次
+    - cron: "0 * * * *"
+  workflow_dispatch:        # 也可以随时手动启动一次（推荐在要查询前点一下）
+
+# 同一时间只跑一个监听，新的排队等旧的结束
+concurrency:
+  group: qq-listen
+  cancel-in-progress: false
+
+jobs:
+  listen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 62
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 监听 QQ 指令
+        env:
+          QQ_APPID:  ${{ secrets.QQ_APPID }}
+          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+          QQ_OPENID: ${{ secrets.QQ_OPENID }}
+        # 跑 55 分钟后主动退出，留出余量给下一次启动
+        run: timeout -s INT 3300 python run.py --listen || true
