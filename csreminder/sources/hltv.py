@@ -76,6 +76,15 @@ def _cache_put(name: str, obj):
 
 CAPTCHA_HINT = "Performing security verification"
 
+# r.jina.ai 会拒绝非浏览器 UA，必须伪装成 Chrome
+JINA_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+    "Accept": "text/plain,text/markdown,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "X-Return-Format": "markdown",
+}
+
 
 def _jina(path_or_url: str, retries: int = 3) -> str:
     """通过 r.jina.ai 取 HLTV 页面。遇到验证码自动重试。"""
@@ -83,8 +92,7 @@ def _jina(path_or_url: str, retries: int = 3) -> str:
     last = ""
     for i in range(retries):
         try:
-            txt = web.request(JINA + url, timeout=90, retries=1,
-                              headers={"X-Return-Format": "markdown"})
+            txt = web.request(JINA + url, timeout=90, retries=1, headers=JINA_HEADERS)
             if CAPTCHA_HINT not in txt and "Just a moment" not in txt[:200]:
                 return txt
             last = "HLTV 返回了人机验证页"
