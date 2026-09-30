@@ -1,0 +1,102 @@
++ echo '########## 查询战队数据 天禄 ##########'
+########## 查询战队数据 天禄 ##########
++ python run.py --team 天禄
+  [HLTV 排名获取失败] RuntimeError: 抓取 HLTV 失败（HLTV 返回了人机验证页）
+🏆 TYLOO（天禄） · 战队数据
+
+【基本信息】
+  国家    ：中国
+  V社排名 ：第 26 名 V社世界排名（1364 分）
+
+【战绩统计】
+  比赛场次    ：-
+  比赛胜负    ：-
+  地图总数    ：-
+  地图胜负    ：-
+
+【当前阵容】
+  Jee          中国 · Ji Dongkai
+  JamYoung     中国 · Yang Yi
+  zero         中国 · Su Jingshen
+  Mercury      中国 · Wang Jingxiang
+  Moseyuh      中国
+
+【近期比赛】
+  2026-10-03  vs Team Falcons     0 : 0
+
+【参赛赛事】
+  · IEM Cologne Major 2026
+  · Fissure Playground 1 2025
+  · IEM Beijing 2026
+  · PGL Masters Bucharest 2026
+  · ESL Pro League Season 24 2026
+
+— 数据来源：BLAST.tv 官方
++ echo
+
++ echo '########## 查询战队数据 绿龙 ##########'
+########## 查询战队数据 绿龙 ##########
++ python run.py --team 绿龙
+  [HLTV 排名获取失败] RuntimeError: 抓取 HLTV 失败（HLTV 返回了人机验证页）
+🏆 Spirit（绿龙） · 战队数据
+
+【基本信息】
+  国家    ：俄罗斯
+  V社排名 ：第 1 名 V社世界排名（2031 分）
+
+【战绩统计】
+  比赛场次    ：195
+  比赛胜负    ：142/53 (73%)
+  地图总数    ：543
+  地图胜负    ：348/195 (64%)
+
+【当前阵容】
+  zont1x       乌克兰 · Myroslav Plakhotja
+  sh1ro        俄罗斯 · Dmitry Sokolov
+  tN1R         白俄罗斯 · Andrey Tatarinovich
+  magixx       俄罗斯 · Boris Vorobiev
+  donk         俄罗斯 · Danil Kryshkovets
+
+【近期比赛】
+  2026-10-03  vs ShindeN          0 : 0
+  2026-09-06  vs MOUZ             3 : 1
+  2026-09-05  vs Team Falcons     2 : 0
+  2026-08-31  vs FURIA            2 : 0
+  2026-08-28  vs G2               2 : 0
+  2026-08-26  vs DENDELE          2 : 0
+
+【参赛赛事】
+  · PGL Masters Bucharest 2026
+  · ESL Pro League Season 24 2026
+  · BLAST Premier Open Porto 2026
+  · Perfect World Shanghai Major 2024 Playoffs
+  · Esports World Cup 2026 CS2
+  · PGL Astana 2026
+
+— 数据来源：BLAST.tv 官方
++ echo
+
++ echo '########## 查询选手数据 donk ##########'
+########## 查询选手数据 donk ##########
++ python run.py --player donk
+  [HLTV 选手数据获取失败] RuntimeError: 抓取 HLTV 失败（HLTV 返回了人机验证页）
+👤 donk · 选手数据
+
+【基本信息】
+  真名    ：Danil Kryshkovets
+  国籍    ：俄罗斯
+  所属战队：Spirit（绿龙） · 世界第 1 名
+
+【队友】
+  zont1x       乌克兰 · Myroslav Plakhotja
+  sh1ro        俄罗斯 · Dmitry Sokolov
+  tN1R         白俄罗斯 · Andrey Tatarinovich
+  magixx       俄罗斯 · Boris Vorobiev
+
+【战队近期比赛】
+  2026-10-03  vs ShindeN          0 : 0
+  2026-09-06  vs MOUZ             3 : 1
+  2026-09-05  vs Team Falcons     2 : 0
+  2026-08-31  vs FURIA            2 : 0
+
+— 数据来源：BLAST.tv 官方
