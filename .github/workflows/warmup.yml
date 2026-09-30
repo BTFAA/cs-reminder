@@ -1,17 +1,21 @@
-name: CS2 赛后战报
+name: CS2 缓存预热
+
+# 每小时 50 分把战队索引 / 选手索引 / HLTV 排名 全部拉一遍并存进缓存，
+# 这样下一小时的监听任务一启动就是热的，你在 QQ 里问能秒回。
+
 on:
   schedule:
-    - cron: "15 */3 * * *"        # 每 3 小时检查一次（UTC）
+    - cron: "50 * * * *"
   workflow_dispatch:
-permissions:
-  contents: write
+
 concurrency:
-  group: cs-results
+  group: cs-warm
   cancel-in-progress: false
+
 jobs:
-  results:
+  warm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,10 +28,8 @@ jobs:
           key: cs-data-${{ github.run_id }}
           restore-keys: |
             cs-data-
-      - name: 检查赛果（只推当天的）
+      - name: 预热
         env:
           QQ_APPID: ${{ secrets.QQ_APPID }}
           QQ_SECRET: ${{ secrets.QQ_SECRET }}
-          QQ_OPENID: ${{ secrets.QQ_OPENID }}
-          QQ_GROUP_OPENID: ${{ secrets.QQ_GROUP_OPENID }}
-        run: python run.py --results
+        run: python run.py --warm

@@ -388,6 +388,56 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
     return ""
 
 
+def warm_cmd(cfg, args) -> int:
+    """预热所有缓存，让后续查询秒回。"""
+    import time as _t
+    t0 = _t.time()
+    from .sources import blastteams
+
+    _log(cfg, "预热开始…")
+
+    # 1) 战队索引
+    try:
+        idx = blastteams.load_team_index()
+        _log(cfg, "  战队索引：%d 支（%.1fs）" % (len(idx), _t.time() - t0))
+    except Exception as e:
+        _log(cfg, "  战队索引失败：%s" % str(e)[:80])
+
+    # 2) 选手索引（最慢的一步）
+    t1 = _t.time()
+    try:
+        pi = blastteams.load_player_index(cfg)
+        _log(cfg, "  选手索引：%d 人（%.1fs）" % (len(pi), _t.time() - t1))
+    except Exception as e:
+        _log(cfg, "  选手索引失败：%s" % str(e)[:80])
+
+    # 3) HLTV 世界排名 + 选手 ID 表
+    t2 = _t.time()
+    try:
+        from .sources import hltv
+        rows = hltv.ranking()
+        _log(cfg, "  HLTV 排名：%d 支（%.1fs）" % (len(rows), _t.time() - t2))
+    except Exception as e:
+        _log(cfg, "  HLTV 排名失败：%s" % str(e)[:100])
+
+    # 4) 关注队伍的 HLTV 选手数据（这样交互时直接命中缓存）
+    try:
+        from .sources import hltv
+        for t in cfg.teams:
+            r = hltv.team_rank(t.name)
+            for slug in (r.get("roster") or [])[:5]:
+                try:
+                    hltv.player_stats(slug)
+                except Exception:
+                    pass
+        _log(cfg, "  关注队伍选手数据已缓存")
+    except Exception as e:
+        _log(cfg, "  选手数据预热失败：%s" % str(e)[:80])
+
+    _log(cfg, "预热完成，总耗时 %.1f 秒" % (_t.time() - t0))
+    return 0
+
+
 def results_cmd(cfg, args) -> int:
     """赛后战报：关注队伍有新的完赛结果就推送。"""
     st = statemod.State(os.path.join(BASE_DIR, "data", "state.json"))
@@ -467,11 +517,23 @@ def _team_cmd(cfg, name: str) -> str:
     if not r:
         return ("没找到「%s」这支战队 😕\n\n"
                 "试试队名或中文绰号：天禄 / 小蜜蜂 / 绿龙 / TYLOO / Vitality / Spirit" % name)
-    try:
-        team = blastteams.fetch_team("%s/%s" % (r["id"], r["slug"]))
-    except Exception as e:
-        return "抓取战队数据失败：%s" % str(e)[:120]
-    hr = _hltv_rank(cfg, team.get("name") or name)
+    # BLAST 战队页 和 HLTV 排名 并行抓，省一半时间
+    from concurrent.futures import ThreadPoolExecutor
+    guess = r["slug"].replace("-", " ")
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_team = ex.submit(blastteams.fetch_team, "%s/%s" % (r["id"], r["slug"]))
+        f_rank = ex.submit(_hltv_rank, cfg, guess)
+        try:
+            team = f_team.result()
+        except Exception as e:
+            return "抓取战队数据失败：%s" % str(e)[:120]
+        try:
+            hr = f_rank.result()
+        except Exception:
+            hr = None
+    # 名字对不上就再用 BLAST 的正式名查一次（排名已缓存，很快）
+    if not hr and team.get("name") and team["name"].lower() != guess.lower():
+        hr = _hltv_rank(cfg, team["name"])
     return fmtmod.build_team_report(cfg, team, hr)
 
 
@@ -489,18 +551,23 @@ def _player_cmd(cfg, name: str) -> str:
         return ("没查到「%s」这位选手 😕\n\n"
                 "用比赛里的 ID 试试（比如 Jee、ZywOo、donk），\n"
                 "或者先发「查询战队数据 天禄」看看阵容。" % name)
-    team = {}
-    if p.get("team_slug"):
+    from concurrent.futures import ThreadPoolExecutor
+    team, hp = {}, None
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_team = ex.submit(blastteams.fetch_team, p["team_slug"]) if p.get("team_slug") else None
+        def _hp():
+            from .sources import hltv
+            return hltv.player_stats(p.get("slug") or name)
+        f_hp = ex.submit(_hp)
+        if f_team:
+            try:
+                team = f_team.result()
+            except Exception:
+                team = {}
         try:
-            team = blastteams.fetch_team(p["team_slug"])
-        except Exception:
-            pass
-    hp = None
-    try:
-        from .sources import hltv
-        hp = hltv.player_stats(p.get("slug") or name)
-    except Exception as e:
-        print("  [HLTV 选手数据获取失败] %s: %s" % (type(e).__name__, str(e)[:90]), flush=True)
+            hp = f_hp.result()
+        except Exception as e:
+            print("  [HLTV 选手数据获取失败] %s: %s" % (type(e).__name__, str(e)[:90]), flush=True)
     return fmtmod.build_player_report(cfg, p, team, hp)
 
 
@@ -844,6 +911,7 @@ def main(argv=None):
                     help="连接 QQ 机器人网关，抓取群 / 单聊的 openid")
     ap.add_argument("--ask", metavar="一句话", help="智能问答：模拟在 QQ 里说一句话（调试用）")
     ap.add_argument("--results", action="store_true", help="检查关注队伍的比赛结果，有新结果就推送")
+    ap.add_argument("--warm", action="store_true", help="预热所有缓存（战队索引/选手索引/HLTV 排名），让后续查询秒回")
     ap.add_argument("--query", metavar="名字", help="智能查询：自动判断是战队还是选手（调试用）")
     ap.add_argument("--team", metavar="队名", help="直接输出某支战队的报告（调试用）")
     ap.add_argument("--player", metavar="选手", help="直接输出某位选手的报告（调试用）")
@@ -869,6 +937,8 @@ def main(argv=None):
     if args.ask is not None:
         print(_smart_ask(cfg, args.ask, "debug"))
         return 0
+    if args.warm:
+        return warm_cmd(cfg, args)
     if args.results:
         return results_cmd(cfg, args)
     if args.query:

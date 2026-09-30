@@ -1,0 +1,46 @@
+name: selftest
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 恢复缓存
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: cs-data-${{ github.run_id }}
+          restore-keys: |
+            cs-data-
+      - name: 计时测试
+        env:
+          QQ_APPID: ${{ secrets.QQ_APPID }}
+          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+        run: |
+          : > speed.txt
+          echo "缓存状态：" >> speed.txt
+          ls -la data/ 2>/dev/null >> speed.txt || echo "  (无缓存，本次是冷启动)" >> speed.txt
+          echo >> speed.txt
+          for q in "天禄" "donk" "世界排名" "天禄下一场打谁" "绿龙最近赢了吗" "对比 donk ZywOo"; do
+            s=$(date +%s.%N)
+            out=$(timeout 260 python run.py --ask "$q" 2>&1)
+            e=$(date +%s.%N)
+            echo "##### $q   耗时 $(echo "$e - $s" | bc) 秒 #####" >> speed.txt
+            echo "$out" | head -25 >> speed.txt
+            echo >> speed.txt
+          done
+          cat speed.txt
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add speed.txt
+          git commit -m "speed test" || true
+          git push || true
