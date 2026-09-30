@@ -115,6 +115,9 @@ def _curl_get(url: str, timeout: int = 90):
 
 
 def _jina(path_or_url: str, retries: int = 8) -> str:
+    import os as _os
+    if _os.environ.get("CS_SKIP_HLTV"):
+        raise RuntimeError("已设置 CS_SKIP_HLTV，跳过 HLTV")
     """通过 r.jina.ai 取 HLTV 页面。先用 curl，失败再退回 urllib。"""
     url = path_or_url if path_or_url.startswith("http") else HLTV + path_or_url
     target = JINA + url
@@ -145,6 +148,9 @@ def _jina(path_or_url: str, retries: int = 8) -> str:
 # ------------------------------------------------------------------ 世界排名
 def ranking(force: bool = False) -> list:
     """HLTV 世界排名：[{rank,name,points,id,slug,roster}]"""
+    import os as _os
+    if _os.environ.get("CS_SKIP_HLTV") and not force:
+        return _os.environ["CS_SKIP_HLTV"] != "1" and [] or []
     if not force:
         c = _cache_get("hltv_ranking.json", CACHE_TTL)
         if c:

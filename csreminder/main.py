@@ -181,6 +181,15 @@ def _auto_cmd(cfg, name: str) -> str:
             "· 选手试试：donk / ZywOo / Jee / sh1ro" % name)
 
 
+def _day_report(cfg) -> str:
+    """当天赛程。"""
+    ps = _schedule_only(cfg)
+    if not ps.get("ok"):
+        return "抱歉，赛程数据暂时取不到：\n%s" % (ps.get("error") or "未知错误")[:200]
+    matches = list(ps.get("upcoming") or []) + list(ps.get("past") or [])
+    return fmtmod.build_day_report(cfg, matches)
+
+
 def _match_involves(cfg, name: str, match: dict) -> bool:
     """这场比赛是否和 name 有关（队名/别名/中文绰号）。"""
     from .sources import blastteams as _bt
@@ -368,9 +377,18 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
             return _team_cmd(cfg, name)
         return _auto_cmd(cfg, name)
 
-    # ---- 没实体但有意图 ----
+    # ---- 没实体 ----
+    # 先看是不是 config 里定义的赛程触发词（赛事推送 / 赛程 / 今日赛程 / 今天比赛）
+    cmds = cfg.raw.get("commands") or {}
+    triggers = [t for t in (cmds.get("triggers") or ["赛事推送", "赛程"]) if t]
+    norm_txt = nlu.normalize(text)
+    for t in sorted(triggers, key=len, reverse=True):
+        nt = nlu.normalize(t)
+        if nt and nt in norm_txt:
+            return _day_report(cfg)
+
     if intent == "schedule":
-        return _day_report()
+        return _day_report(cfg)
     if intent == "result":
         L = ["📊 关注队伍近期战绩", ""]
         for t in cfg.teams:
@@ -382,10 +400,17 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
         L.append("— 数据来源：BLAST.tv 官方")
         return "\n".join(L)
 
-    # ---- 兜底 ----
-    if is_group:
-        return ""          # 群里不认识的就不吭声，别刷屏
-    return ""
+    # ---- 兜底：不认识的也给个提示，别让人以为机器人坏了 ----
+    head = (text or "").strip()[:16]
+    return ("没看懂「%s」😅\n\n"
+            "你可以这样说：\n"
+            "  donk / 天禄 / 绿龙      查战队或选手\n"
+            "  世界排名                 HLTV 世界前 10\n"
+            "  对比 donk ZywOo          两个选手对比\n"
+            "  天禄下一场打谁            下一场比赛\n"
+            "  绿龙最近赢了吗            近期战绩\n"
+            "  赛事推送                 当天赛程\n"
+            "  帮助                     完整说明" % head)
 
 
 def warm_cmd(cfg, args) -> int:
@@ -634,12 +659,6 @@ def qq_listen_cmd(cfg, args):
             reply = "出了点小问题，稍后再试 \ud83d\ude48"
         return reply or None
 
-    def _day_report():
-        ps = _schedule_only(cfg)
-        if not ps.get("ok"):
-            return "抱歉，赛程数据暂时取不到：\n%s" % (ps.get("error") or "未知错误")[:200]
-        matches = list(ps.get("upcoming") or []) + list(ps.get("past") or [])
-        return fmtmod.build_day_report(cfg, matches)
 
     return qqlisten.listen(appid, secret, handle,
                            log=lambda s: print(s, flush=True),

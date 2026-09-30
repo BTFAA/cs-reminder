@@ -186,12 +186,15 @@ def describe(text: str, cfg, player_index=None, last=None):
     forced = detect_forced_kind(text)
     kind, name, how = match_entity(text, cfg, player_index)
 
-    # 没找到实体？如果有上下文并且是追问型，就沿用上一句的
-    follow = bool(re.search(r"(那|他|她|它|这个|那个)", text or "")) or not name
-    if not name and last and last.get("name") and intent in ("schedule", "result", "team", "player", ""):
-        if follow:
-            return {"intent": intent or last.get("intent", ""), "kind": last["kind"],
-                    "name": last["name"], "how": "context", "forced": forced}
+    # 没找到实体时，只有「看起来像追问」才沿用上一条，否则会乱套
+    #   · 有指代词（那/他/它/这个/那个）
+    #   · 或者本身带意图（「下一场呢」「战绩呢」）
+    follow_words = bool(re.search(r"(那|他|她|它|这个|那个|呢|还)", text or ""))
+    if (not name and last and last.get("name")
+            and follow_words
+            and intent in ("schedule", "result", "team", "player", "")):
+        return {"intent": intent or last.get("intent", ""), "kind": last["kind"],
+                "name": last["name"], "how": "context", "forced": forced}
 
     if forced and name:
         kind = forced
