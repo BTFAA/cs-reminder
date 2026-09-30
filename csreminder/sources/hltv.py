@@ -250,10 +250,12 @@ def player_stats(slug: str, force: bool = False) -> dict:
     m = re.search(r"statistics\(([^)]{3,60})\)", txt)
     if m:
         out["period"] = m.group(1).strip()
-    m = re.search(r"Rating[^\d]{0,40}(\d\.\d{2})", txt)
+    m = (re.search(r"\*\*Rating[^*]{0,24}\*\*[\s\S]{0,90}?(\d\.\d{2})", txt)
+         or re.search(r"Rating\s*\n+\s*(\d\.\d{2})", txt)
+         or re.search(r"Rating[^0-9\n]{0,30}(\d\.\d{2})", txt))
     if m:
         out["rating"] = m.group(1)
-    subs = re.findall(r"\*\*([A-Z][A-Za-z ]{2,14})\*\*\s*\*\*(\d{1,3})\*\*/100", txt)
+    subs = re.findall(r"\*\*([A-Z][A-Za-z ]{2,14})\*\*[\s\n]{0,40}\*\*(\d{1,3})\*\*/\s*100", txt)
     if subs:
         out["sub"] = [{"name": a.strip(), "score": int(b)} for a, b in subs][:8]
     imp = re.findall(r"\*\*([A-Z][A-Za-z ]{2,14})\*\*\s*\n\s*\*\*(\d{1,3})\*\*/100", txt)

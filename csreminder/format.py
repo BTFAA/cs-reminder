@@ -307,7 +307,8 @@ def build_team_report(cfg, team: dict, hltv: dict = None) -> str:
         L.append("  HLTV排名：未进前 30")
     L.append("")
 
-    st = team.get("stats") or {}
+    st = {k: v for k, v in (team.get("stats") or {}).items()
+          if v and v.strip() not in ("-", "0", "")}
     if st:
         L.append("【战绩统计】")
         for k, v in st.items():
@@ -366,6 +367,10 @@ def build_player_report(cfg, player: dict, team: dict = None, hltv: dict = None)
         extra = " · 世界%s" % _rank_cn(player["team_rank"])
     L.append("  所属战队：%s%s%s" % (tname, ("（%s）" % tcn) if tcn else "", extra))
     if hltv:
+        if hltv.get("team_slug"):
+            ts = hltv["team_slug"]
+            if ts and ts.lower() not in (tname or "").lower():
+                pass
         if hltv.get("age"):
             L.append("  年龄    ：%s 岁" % hltv["age"])
         if hltv.get("prize"):
@@ -377,9 +382,10 @@ def build_player_report(cfg, player: dict, team: dict = None, hltv: dict = None)
             L.append("  荣誉    ：" + "、".join(hltv["achievements"]))
     L.append("")
 
-    if hltv and hltv.get("rating"):
+    if hltv and (hltv.get("rating") or hltv.get("sub")):
         L.append("【HLTV 数据】%s" % (("（%s）" % hltv["period"]) if hltv.get("period") else ""))
-        L.append("  Rating    ：%s" % hltv["rating"])
+        if hltv.get("rating"):
+            L.append("  Rating    ：%s" % hltv["rating"])
         for s in (hltv.get("sub") or []):
             L.append("  %-10s：%s / 100" % (s["name"], s["score"]))
         L.append("")
