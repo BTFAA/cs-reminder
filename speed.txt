@@ -1,0 +1,33 @@
+全量字典: 679 人
+
+✅ donk           👤 donk · 选手数据                            0.4s
+✅ ZywOo          👤 ZywOo · 选手数据                           0.1s
+✅ s1mple         👤 s1mple · 选手数据                          12.4s
+✅ NiKo           👤 NiKo · 选手数据                            7.4s
+✅ m0NESY         👤 m0NESY · 选手数据                          5.4s
+✅ device         👤 dev1ce · 选手数据                          9.1s
+✅ sh1ro          👤 sh1ro · 选手数据                           0.3s
+✅ Jee            👤 Jee · 选手数据                             0.2s
+✅ ropz           👤 ropz · 选手数据                            0.1s
+✅ apEX           👤 apEX · 选手数据                            0.1s
+✅ flameZ         👤 flameZ · 选手数据                          0.1s
+✅ magixx         👤 magixx · 选手数据                          0.3s
+✅ Twistzz        👤 Twistzz · 选手数据                         6.9s
+✅ EliGE          👤 EliGE · 选手数据                           4.8s
+✅ b1t            👤 b1t · 选手数据                             7.1s
+✅ Perfecto       👤 Perfecto · 选手数据                        9.0s
+❌ f0rest         没找到            0.0s
+❌ olofmeister    没找到            0.0s
+❌ shox           没找到            0.0s
+❌ flusha         没找到            0.0s
+✅ GeT_RiGhT      👤 get-right · 选手数据                       8.2s
+✅ JW             👤 JW · 选手数据                              7.4s
+❌ dupreeh        没找到            0.0s
+❌ electronic     没找到            0.0s
+✅ NAF            👤 NAF-FLY · 选手数据                         8.0s
+✅ simble         👤 s1mple · 选手数据                          0.0s
+✅ DONK           👤 donk · 选手数据                            0.3s
+✅ zywoo          👤 ZywOo · 选手数据                           0.1s
+✅ NiKo           👤 NiKo · 选手数据                            0.1s
+
+命中 23 / 没找到 6 / 误命中 0
