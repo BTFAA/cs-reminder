@@ -313,15 +313,68 @@ def load_player_index(cfg, force: bool = False) -> dict:
     return players
 
 
-def find_player(cfg, query: str):
-    q = (query or "").strip().lower()
+def find_player(cfg, query: str, strict: bool = False):
+    """在 BLAST 选手索引里找。严格优先：精确 > 前缀 > 包含 > 编辑距离。
+
+    旧版用「key 是查询的子串」判断，会误命中：
+      dupreeh 命中 "pr"、electronic 命中 "onic" —— 已修掉。
+    """
+    q = (query or "").strip().lower().replace(" ", "")
     if not q:
         return None
     pi = load_player_index(cfg)
+    if not pi:
+        return None
+
     if q in pi:
         return pi[q]
-    cands = [(k, v) for k, v in pi.items() if q in k or k in q]
-    if cands:
-        cands.sort(key=lambda x: len(x[0]))
-        return cands[0][1]
-    return None
+
+    if len(q) >= 3:
+        starts = [k for k in pi if k.startswith(q)]
+        if len(starts) == 1:
+            return pi[starts[0]]
+
+    if strict:
+        return None
+
+    if len(q) >= 3:
+        has = [k for k in pi if q in k and len(k) >= 4]
+        if has:
+            has.sort(key=len)
+            return pi[has[0]]
+
+    rev = [k for k in pi if len(k) >= 5 and k in q]
+    if len(rev) == 1:
+        return pi[rev[0]]
+
+    best = None
+    for k in pi:
+        if abs(len(k) - len(q)) > 2:
+            continue
+        d = _lev(q, k, cap=2)
+        lim = 1 if len(q) <= 5 else 2
+        if d <= lim:
+            score = (d, -len(k))
+            if best is None or score < best[0]:
+                best = (score, k)
+    return pi[best[1]] if best else None
+
+
+def _lev(a: str, b: str, cap: int = 3) -> int:
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        best = i
+        for j, cb in enumerate(b, 1):
+            v = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb))
+            cur.append(v)
+            if v < best:
+                best = v
+        if best > cap:
+            return cap + 1
+        prev = cur
+    return prev[-1]

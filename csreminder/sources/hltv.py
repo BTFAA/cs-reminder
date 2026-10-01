@@ -298,13 +298,13 @@ def find_player(name: str) -> dict:
         return {}
     if q in d:
         return d[q]
-    # 前缀匹配
-    starts = [k for k in d if k.startswith(q)]
-    if len(starts) == 1:
-        return d[starts[0]]
-    # 包含匹配
-    has = [k for k in d if q in k]
-    if len(has) == 1:
+    if len(q) >= 3:
+        starts = [k for k in d if k.startswith(q)]
+        if len(starts) == 1:
+            return d[starts[0]]
+    has = [k for k in d if q in k and len(k) >= 4]
+    if has:
+        has.sort(key=len)
         return d[has[0]]
     # 模糊：编辑距离 <= 1（名字短）或 <= 2
     best = None

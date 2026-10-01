@@ -630,9 +630,14 @@ def _player_cmd(cfg, name: str) -> str:
                 "  查询选手数据 ZywOo")
     p = None
     try:
-        p = blastteams.find_player(cfg, name)
+        p = blastteams.find_player(cfg, name, strict=True)
     except Exception:
         p = None
+    if not p:
+        try:
+            p = blastteams.find_player(cfg, name)
+        except Exception:
+            p = None
     # 本地索引没有？用 HLTV 全量选手字典兜底（收录几千人）
     if not p:
         try:

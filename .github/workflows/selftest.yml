@@ -19,49 +19,56 @@ jobs:
           key: cs-data-${{ github.run_id }}
           restore-keys: |
             cs-data-
-      - name: 选手查找测试
-        env:
-          QQ_APPID: ${{ secrets.QQ_APPID }}
-          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+      - name: 查找正确性测试
         run: |
           : > speed.txt
           python - << 'PYEOF' 2>&1 | tee -a speed.txt
-          import sys, time
+          import sys
           sys.path.insert(0, '.')
-          from csreminder import config as cfgmod, main
+          from csreminder import config as cfgmod
           from csreminder.sources import hltv, blastteams
           cfg = cfgmod.load()
-          d = hltv.all_players()
-          print('全量字典人数:', len(d))
+          print('全量字典:', len(hltv.all_players()), '人')
           print()
-          NAMES = ['donk','ZywOo','s1mple','NiKo','m0NESY','device','dupreeh',
-                   'GeT_RiGhT','f0rest','olofmeister','sh1ro','Jee','JamYoung',
-                   'electronic','b1t','Perfecto','Twistzz','EliGE','NAF','ropz',
-                   'apEX','flameZ','mezii','magixx','zont1x','tN1R','sh1ro',
-                   'DONK','zywoo','simble','niko']
-          hit = miss = 0
-          for n in NAMES:
-              t0 = time.time()
-              p = blastteams.find_player(cfg, n)
+          def look(n):
+              p = None
+              try: p = blastteams.find_player(cfg, n, strict=True)
+              except Exception: pass
+              if not p:
+                  try: p = blastteams.find_player(cfg, n)
+                  except Exception: pass
               src = 'BLAST'
               if not p:
                   hp = hltv.find_player(n)
-                  if hp:
-                      p, src = hp, 'HLTV'
-              dt = time.time() - t0
-              if p:
-                  print('✅ %-14s -> %-22s [%s] %.2fs' % (n, p.get('name') or p.get('slug'), src, dt))
-                  hit += 1
-              else:
-                  print('❌ %-14s -> 没找到' % n)
-                  miss += 1
+                  if hp: p, src = hp, 'HLTV'
+              return p, src
+          print('== 曾经误命中的 ==')
+          for n in ['dupreeh','electronic','NAF','simble']:
+              p, s = look(n)
+              print('  %-14s -> %-22s [%s]' % (n, (p or {}).get('name') or '没找到', s if p else '-'))
+          print()
+          print('== 常见选手 ==')
+          hit = miss = 0
+          for n in ['donk','ZywOo','s1mple','NiKo','m0NESY','device','sh1ro','Jee',
+                    'ropz','apEX','flameZ','magixx','Twistzz','EliGE','b1t','Perfecto',
+                    'f0rest','olofmeister','shox','GeT_RiGhT','JW','flusha']:
+              p, s = look(n)
+              if p: hit += 1
+              else: miss += 1
+              print('  %-14s -> %-22s [%s]' % (n, (p or {}).get('name') or '没找到', s if p else '-'))
           print()
           print('命中 %d / 未命中 %d' % (hit, miss))
+          print()
+          print('== 端到端：发一句话看回复 ==')
+          from csreminder import main
+          for q in ['dupreeh', 's1mple', 'electronic']:
+              r = main._smart_ask(cfg, q, '')
+              print('  发 %-12s -> %s' % (q, (r or '').strip().split(chr(10))[0][:46]))
           PYEOF
       - name: commit
         run: |
           git config user.name "cs-bot"
           git config user.email "bot@users.noreply.github.com"
           git add speed.txt
-          git commit -m "player lookup test" || true
+          git commit -m "lookup test" || true
           git push || true
