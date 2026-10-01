@@ -6,7 +6,7 @@ permissions:
 jobs:
   t:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,56 +19,42 @@ jobs:
           key: cs-data-${{ github.run_id }}
           restore-keys: |
             cs-data-
-      - name: 查找正确性测试
+      - name: 真实路径测试（直接调 _smart_ask）
         run: |
           : > speed.txt
           python - << 'PYEOF' 2>&1 | tee -a speed.txt
-          import sys
+          import sys, time
           sys.path.insert(0, '.')
-          from csreminder import config as cfgmod
-          from csreminder.sources import hltv, blastteams
+          from csreminder import config as cfgmod, main
+          from csreminder.sources import hltv
           cfg = cfgmod.load()
           print('全量字典:', len(hltv.all_players()), '人')
           print()
-          def look(n):
-              p = None
-              try: p = blastteams.find_player(cfg, n, strict=True)
-              except Exception: pass
-              if not p:
-                  try: p = blastteams.find_player(cfg, n)
-                  except Exception: pass
-              src = 'BLAST'
-              if not p:
-                  hp = hltv.find_player(n)
-                  if hp: p, src = hp, 'HLTV'
-              return p, src
-          print('== 曾经误命中的 ==')
-          for n in ['dupreeh','electronic','NAF','simble']:
-              p, s = look(n)
-              print('  %-14s -> %-22s [%s]' % (n, (p or {}).get('name') or '没找到', s if p else '-'))
+          NAMES = ['donk','ZywOo','s1mple','NiKo','m0NESY','device','sh1ro','Jee',
+                   'ropz','apEX','flameZ','magixx','Twistzz','EliGE','b1t','Perfecto',
+                   'f0rest','olofmeister','shox','flusha','GeT_RiGhT','JW','dupreeh',
+                   'electronic','NAF','simble','DONK','zywoo','NiKo']
+          hit = miss = wrong = 0
+          BAD = {'pr','onic'}
+          for n in NAMES:
+              t0 = time.time()
+              r = main._smart_ask(cfg, n, '') or ''
+              first = r.strip().split(chr(10))[0]
+              dt = time.time() - t0
+              low = first.lower()
+              if '没看懂' in first or not first:
+                  print('❌ %-14s 没找到            %.1fs' % (n, dt)); miss += 1
+              elif any(('选手数据' in first and b in low) for b in BAD):
+                  print('❌ %-14s 误命中: %s' % (n, first[:40])); wrong += 1
+              else:
+                  print('✅ %-14s %-40s %.1fs' % (n, first[:40], dt)); hit += 1
           print()
-          print('== 常见选手 ==')
-          hit = miss = 0
-          for n in ['donk','ZywOo','s1mple','NiKo','m0NESY','device','sh1ro','Jee',
-                    'ropz','apEX','flameZ','magixx','Twistzz','EliGE','b1t','Perfecto',
-                    'f0rest','olofmeister','shox','GeT_RiGhT','JW','flusha']:
-              p, s = look(n)
-              if p: hit += 1
-              else: miss += 1
-              print('  %-14s -> %-22s [%s]' % (n, (p or {}).get('name') or '没找到', s if p else '-'))
-          print()
-          print('命中 %d / 未命中 %d' % (hit, miss))
-          print()
-          print('== 端到端：发一句话看回复 ==')
-          from csreminder import main
-          for q in ['dupreeh', 's1mple', 'electronic']:
-              r = main._smart_ask(cfg, q, '')
-              print('  发 %-12s -> %s' % (q, (r or '').strip().split(chr(10))[0][:46]))
+          print('命中 %d / 没找到 %d / 误命中 %d' % (hit, miss, wrong))
           PYEOF
       - name: commit
         run: |
           git config user.name "cs-bot"
           git config user.email "bot@users.noreply.github.com"
           git add speed.txt
-          git commit -m "lookup test" || true
+          git commit -m "smartask test" || true
           git push || true

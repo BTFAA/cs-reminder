@@ -430,8 +430,14 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
                         kind, name = "team", probe
                 except Exception:
                     pass
-            if name and target:
-                ctxmod.put(target, kind, name, "player" if kind == "player" else "team")
+            if name:
+                if target:
+                    ctxmod.put(target, kind, name,
+                               "player" if kind == "player" else "team")
+                # 找到了就直接答，别再往下掉到「没看懂」
+                if kind == "player":
+                    return _player_cmd(cfg, name)
+                return _team_cmd(cfg, name)
 
     # ---- 兜底：不认识的也给个提示，别让人以为机器人坏了 ----
     head = (text or "").strip()[:16]
@@ -457,8 +463,12 @@ def build_players_cmd(cfg, args) -> int:
     _log(cfg, "已有 %d 人，继续补充" % len(players))
 
     # 数据源：活跃 / 退役 / 各月选手排名
-    sources = ["players/archive/active", "players/archive/retired"]
-    for ym in ("2026/september", "2026/august", "2026/july", "2026/june"):
+    sources = ["players/archive/active", "players/archive/retired", "players/top20"]
+    # Top20 历年（含已退役传奇：f0rest / olofmeister / shox / flusha ...）
+    for y in range(2013, 2027):
+        sources.append("players/top20?year=%d" % y)
+    for ym in ("2026/september", "2026/august", "2026/july", "2026/june",
+               "2025/december", "2025/june", "2024/december"):
         sources.append("ranking/players/" + ym)
 
     t0 = _t.time()
