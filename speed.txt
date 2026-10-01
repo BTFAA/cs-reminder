@@ -1,0 +1,35 @@
+全量字典人数: 679
+
+✅ donk           -> donk                   [BLAST] 0.00s
+✅ ZywOo          -> ZywOo                  [BLAST] 0.00s
+✅ s1mple         -> s1mple                 [HLTV] 0.00s
+✅ NiKo           -> NiKo                   [BLAST] 0.00s
+✅ m0NESY         -> m0NESY                 [BLAST] 0.00s
+✅ device         -> dev1ce                 [HLTV] 0.00s
+✅ dupreeh        -> PR                     [BLAST] 0.00s
+✅ GeT_RiGhT      -> get-right              [HLTV] 0.00s
+❌ f0rest         -> 没找到
+❌ olofmeister    -> 没找到
+✅ sh1ro          -> sh1ro                  [BLAST] 0.00s
+✅ Jee            -> Jee                    [BLAST] 0.00s
+✅ JamYoung       -> JamYoung               [BLAST] 0.00s
+✅ electronic     -> onic                   [BLAST] 0.00s
+✅ b1t            -> b1t                    [BLAST] 0.00s
+✅ Perfecto       -> Perfecto               [BLAST] 0.00s
+✅ Twistzz        -> Twistzz                [BLAST] 0.00s
+✅ EliGE          -> EliGE                  [BLAST] 0.00s
+✅ NAF            -> NAF-FLY                [BLAST] 0.00s
+✅ ropz           -> ropz                   [BLAST] 0.00s
+✅ apEX           -> apEX                   [BLAST] 0.00s
+✅ flameZ         -> flameZ                 [BLAST] 0.00s
+✅ mezii          -> mezii                  [BLAST] 0.00s
+✅ magixx         -> magixx                 [BLAST] 0.00s
+✅ zont1x         -> zont1x                 [BLAST] 0.00s
+✅ tN1R           -> tN1R                   [BLAST] 0.00s
+✅ sh1ro          -> sh1ro                  [BLAST] 0.00s
+✅ DONK           -> donk                   [BLAST] 0.00s
+✅ zywoo          -> ZywOo                  [BLAST] 0.00s
+✅ simble         -> iM                     [BLAST] 0.00s
+✅ niko           -> NiKo                   [BLAST] 0.00s
+
+命中 29 / 未命中 2
