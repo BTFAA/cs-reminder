@@ -1,0 +1,37 @@
+name: probetest
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 恢复缓存
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: cs-data-${{ github.run_id }}
+          restore-keys: |
+            cs-data-
+      - name: 抓选手总表
+        env:
+          QQ_APPID: ${{ secrets.QQ_APPID }}
+          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+        run: |
+          python run.py --build-players 80 2>&1 | tail -60
+          echo '--- 词典大小 ---' >> probe.txt
+          python -c "import json;d=json.load(open('data/hltv_players_all.json',encoding='utf-8'));print(len(d));print(list(d.items())[:5]);print(list(d.items())[-5:])" >> probe.txt 2>&1
+          cat probe.txt
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add probe.txt
+          git commit -m "probe" || true
+          git push || true

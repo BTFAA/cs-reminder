@@ -413,6 +413,50 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
             "  帮助                     完整说明" % head)
 
 
+def build_players_cmd(cfg, args) -> int:
+    """从 HLTV 抓「活跃选手」总表，建成 名字 -> HLTV id/slug 的大字典。"""
+    import json as _json
+    import time as _t
+    from .sources import hltv
+
+    limit = int(args.build_players)
+    if limit <= 0:
+        limit = 999
+
+    players = {}
+    try:
+        with open(hltv._data_dir() + "/hltv_players_all.json", "r", encoding="utf-8") as f:
+            players = json.load(f)
+        _log(cfg, "已有 %d 人，继续补充" % len(players))
+    except Exception:
+        players = {}
+
+    t0 = _t.time()
+    for page in range(1, limit + 1):
+        path = "players/archive/active" + (("?page=%d" % page) if page > 1 else "")
+        try:
+            txt = hltv._jina(path, retries=3)
+        except Exception as e:
+            _log(cfg, "  第 %d 页失败：%s" % (page, str(e)[:90]))
+            continue
+        pairs = re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt)
+        before = len(players)
+        for pid, slug in pairs:
+            players.setdefault(slug, {"id": pid, "slug": slug, "name": slug})
+        got = len(players) - before
+        _log(cfg, "  第 %2d 页：本页 %d 条，新增 %d，累计 %d（%.0fs）"
+             % (page, len(pairs), got, len(players), _t.time() - t0))
+        if not pairs or got == 0:
+            _log(cfg, "  没有新数据了，停止翻页")
+            break
+        _t.sleep(1)
+
+    with open(hltv._data_dir() + "/hltv_players_all.json", "w", encoding="utf-8") as f:
+        json.dump(players, f, ensure_ascii=False)
+    _log(cfg, "完成：共 %d 名选手，总耗时 %.0f 秒" % (len(players), _t.time() - t0))
+    return 0
+
+
 def warm_cmd(cfg, args) -> int:
     """预热所有缓存，让后续查询秒回。"""
     import time as _t
@@ -939,6 +983,7 @@ def main(argv=None):
     ap.add_argument("--ask", metavar="一句话", help="智能问答：模拟在 QQ 里说一句话（调试用）")
     ap.add_argument("--results", action="store_true", help="检查关注队伍的比赛结果，有新结果就推送")
     ap.add_argument("--warm", action="store_true", help="预热所有缓存（战队索引/选手索引/HLTV 排名），让后续查询秒回")
+    ap.add_argument("--build-players", type=int, default=0, metavar="页数", help="从 HLTV 抓取活跃选手总表（0=一直翻到底）")
     ap.add_argument("--query", metavar="名字", help="智能查询：自动判断是战队还是选手（调试用）")
     ap.add_argument("--team", metavar="队名", help="直接输出某支战队的报告（调试用）")
     ap.add_argument("--player", metavar="选手", help="直接输出某位选手的报告（调试用）")
@@ -964,6 +1009,8 @@ def main(argv=None):
     if args.ask is not None:
         print(_smart_ask(cfg, args.ask, "debug"))
         return 0
+    if args.build_players:
+        return build_players_cmd(cfg, args)
     if args.warm:
         return warm_cmd(cfg, args)
     if args.results:
