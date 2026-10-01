@@ -1,4 +1,0 @@
---- 词典大小 ---
-342
-[('0samas', {'id': '22419', 'slug': '0samas', 'name': '0samas'}), ('1eer', {'id': '21266', 'slug': '1eer', 'name': '1eer'}), ('7kick', {'id': '20889', 'slug': '7kick', 'name': '7kick'}), ('910', {'id': '21809', 'slug': '910', 'name': '910'}), ('acor', {'id': '10330', 'slug': 'acor', 'name': 'acor'})]
-[('zont1x', {'id': '20423', 'slug': 'zont1x', 'name': 'zont1x'}), ('zorte', {'id': '15662', 'slug': 'zorte', 'name': 'zorte'}), ('ztr', {'id': '16486', 'slug': 'ztr', 'name': 'ztr'}), ('zweih', {'id': '23685', 'slug': 'zweih', 'name': 'zweih'}), ('zywoo', {'id': '11893', 'slug': 'zywoo', 'name': 'zywoo'})]

@@ -6,32 +6,48 @@ permissions:
 jobs:
   t:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: 恢复缓存
-        uses: actions/cache@v4
-        with:
-          path: data
-          key: cs-data-${{ github.run_id }}
-          restore-keys: |
-            cs-data-
-      - name: 抓选手总表
-        env:
-          QQ_APPID: ${{ secrets.QQ_APPID }}
-          QQ_SECRET: ${{ secrets.QQ_SECRET }}
+      - name: 探测 HLTV 各选手列表源
         run: |
-          python run.py --build-players 80 2>&1 | tail -60
-          echo '--- 词典大小 ---' >> probe.txt
-          python -c "import json;d=json.load(open('data/hltv_players_all.json',encoding='utf-8'));print(len(d));print(list(d.items())[:5]);print(list(d.items())[-5:])" >> probe.txt 2>&1
-          cat probe.txt
+          : > probe.txt
+          python - << 'PYEOF' 2>&1 | tee -a probe.txt
+          import sys, re, time
+          sys.path.insert(0, '.')
+          from csreminder.sources import hltv
+          URLS = [
+              ('active 第1页', 'players/archive/active'),
+              ('active 第2页', 'players/archive/active?page=2'),
+              ('active 第10页', 'players/archive/active?page=10'),
+              ('stats offset=0', 'stats/players?startDate=2024-01-01&endDate=2026-12-31&offset=0'),
+              ('stats offset=100', 'stats/players?startDate=2024-01-01&endDate=2026-12-31&offset=100'),
+              ('stats offset=500', 'stats/players?startDate=2024-01-01&endDate=2026-12-31&offset=500'),
+              ('ranking/players', 'ranking/players/2026/september'),
+              ('retired', 'players/archive/retired'),
+          ]
+          allp = set()
+          for name, path in URLS:
+              t0 = time.time()
+              try:
+                  txt = hltv._jina(path, retries=2)
+                  pairs = re.findall(r'hltv\.org/player/(\d+)/([a-z0-9\-]+)', txt)
+                  uniq = set(s for _, s in pairs)
+                  allp |= uniq
+                  print('%-18s 链接 %4d  去重 %4d  累计 %5d   %.0fs' % (name, len(pairs), len(uniq), len(allp), time.time()-t0))
+              except Exception as e:
+                  print('%-18s 失败 %s' % (name, str(e)[:70]))
+          print()
+          print('总去重人数:', len(allp))
+          print('样本:', sorted(allp)[:8], '...', sorted(allp)[-8:])
+          PYEOF
       - name: commit
         run: |
           git config user.name "cs-bot"
           git config user.email "bot@users.noreply.github.com"
           git add probe.txt
-          git commit -m "probe" || true
+          git commit -m "probe2" || true
           git push || true
