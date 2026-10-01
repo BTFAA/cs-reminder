@@ -134,9 +134,17 @@ def match_entity(text: str, cfg, player_index=None, allow_fuzzy: bool = True):
         for k, v in player_index.items():
             players[normalize(k)] = v
 
-    # ---------- 1) 精确包含（长的优先，避免 "g2" 命中 "g2x"）----------
+    # ---------- 1) 子串匹配（要够长才认，避免 "pr" 命中 "dupreeh"）----------
+    def _ok_sub(cand: str, textlen: int) -> bool:
+        cjk = bool(re.search(r"[\u4e00-\u9fff]", cand))
+        if cjk:
+            return len(cand) >= 2          # 中文队名「天禄」「绿龙」允许 2 字
+        # 西文名字：至少 3 字，而且长度要和整句接近（避免短片段命中长词）
+        return len(cand) >= 3 and abs(len(cand) - textlen) <= 2
+
     for src, kind in ((teams, "team"), (players, "player")):
-        hits = [(n, v) for n, v in src.items() if len(n) >= 2 and n in norm_text]
+        hits = [(n, v) for n, v in src.items()
+                if _ok_sub(n, len(norm_text)) and n in norm_text]
         if hits:
             hits.sort(key=lambda x: -len(x[0]))
             n, v = hits[0]

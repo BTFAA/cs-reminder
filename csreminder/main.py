@@ -400,6 +400,39 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
         L.append("— 数据来源：BLAST.tv 官方")
         return "\n".join(L)
 
+    # ---- NLU 没认出实体？直接用查找兜底（BLAST 严格 -> BLAST 宽松 -> HLTV 679 人大字典 -> 战队）----
+    if not name and not intent:
+        from .sources import blastteams as _bt
+        probe = (text or "").strip()
+        if 1 <= len(probe) <= 20 and " " not in probe:
+            found = None
+            for fn in (lambda: _bt.find_player(cfg, probe, strict=True),
+                       lambda: _bt.find_player(cfg, probe)):
+                try:
+                    found = fn()
+                except Exception:
+                    found = None
+                if found:
+                    break
+            if found:
+                kind, name = "player", found["name"]
+            else:
+                try:
+                    from .sources import hltv as _hl
+                    hp = _hl.find_player(probe)
+                    if hp:
+                        kind, name = "player", hp.get("name") or hp.get("slug")
+                except Exception:
+                    pass
+            if not name:
+                try:
+                    if _bt.find_team(cfg, probe, strict=True):
+                        kind, name = "team", probe
+                except Exception:
+                    pass
+            if name and target:
+                ctxmod.put(target, kind, name, "player" if kind == "player" else "team")
+
     # ---- 兜底：不认识的也给个提示，别让人以为机器人坏了 ----
     head = (text or "").strip()[:16]
     return ("没看懂「%s」😅\n\n"
