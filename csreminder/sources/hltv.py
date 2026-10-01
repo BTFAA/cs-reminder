@@ -288,14 +288,32 @@ def save_all_players(d: dict):
     _cache_put("hltv_players_all.json", d)
 
 
-def find_player(name: str) -> dict:
-    """在全量字典里找选手，支持错别字/大小写。"""
+def search_online(name: str) -> dict:
+    """字典里没有时，直接问 HLTV 搜索。"""
+    q = (name or "").strip()
+    if not q or len(q) > 24:
+        return {}
+    for path in ("search?query=" + q.replace(" ", "%20"),
+                 "stats/players?search=" + q.replace(" ", "%20")):
+        try:
+            txt = _jina(path, retries=2)
+        except Exception:
+            continue
+        m = re.search(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt)
+        if m:
+            slug = m.group(2)
+            return {"id": m.group(1), "slug": slug, "name": slug}
+    return {}
+
+
+def find_player(name: str, online: bool = True) -> dict:
+    """在全量字典里找选手，支持错别字/大小写；找不到再去 HLTV 在线搜。"""
     q = (name or "").strip().lower().replace(" ", "")
     if not q:
         return {}
     d = all_players()
     if not d:
-        return {}
+        return search_online(name) if online else {}
     if q in d:
         return d[q]
     if len(q) >= 3:
@@ -317,7 +335,9 @@ def find_player(name: str) -> dict:
             score = (dist, -len(k))
             if best is None or score < best[0]:
                 best = (score, k)
-    return d[best[1]] if best else {}
+    if best:
+        return d[best[1]]
+    return search_online(name) if online else {}
 
 
 def levenshtein(a: str, b: str, cap: int = 3) -> int:

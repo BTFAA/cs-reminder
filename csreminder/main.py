@@ -419,7 +419,7 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
             else:
                 try:
                     from .sources import hltv as _hl
-                    hp = _hl.find_player(probe)
+                    hp = _hl.find_player(probe, online=True)
                     if hp:
                         kind, name = "player", hp.get("name") or hp.get("slug")
                 except Exception:

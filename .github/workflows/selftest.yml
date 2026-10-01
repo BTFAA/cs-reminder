@@ -19,7 +19,7 @@ jobs:
           key: cs-data-${{ github.run_id }}
           restore-keys: |
             cs-data-
-      - name: 真实路径测试（直接调 _smart_ask）
+      - name: 在线搜索兜底测试
         run: |
           : > speed.txt
           python - << 'PYEOF' 2>&1 | tee -a speed.txt
@@ -28,33 +28,31 @@ jobs:
           from csreminder import config as cfgmod, main
           from csreminder.sources import hltv
           cfg = cfgmod.load()
-          print('全量字典:', len(hltv.all_players()), '人')
+          print('字典:', len(hltv.all_players()), '人')
           print()
-          NAMES = ['donk','ZywOo','s1mple','NiKo','m0NESY','device','sh1ro','Jee',
-                   'ropz','apEX','flameZ','magixx','Twistzz','EliGE','b1t','Perfecto',
-                   'f0rest','olofmeister','shox','flusha','GeT_RiGhT','JW','dupreeh',
-                   'electronic','NAF','simble','DONK','zywoo','NiKo']
-          hit = miss = wrong = 0
-          BAD = {'pr','onic'}
-          for n in NAMES:
+          print('== 之前找不到的 ==')
+          for n in ['f0rest','olofmeister','shox','flusha','dupreeh','electronic']:
               t0 = time.time()
               r = main._smart_ask(cfg, n, '') or ''
               first = r.strip().split(chr(10))[0]
-              dt = time.time() - t0
-              low = first.lower()
-              if '没看懂' in first or not first:
-                  print('❌ %-14s 没找到            %.1fs' % (n, dt)); miss += 1
-              elif any(('选手数据' in first and b in low) for b in BAD):
-                  print('❌ %-14s 误命中: %s' % (n, first[:40])); wrong += 1
-              else:
-                  print('✅ %-14s %-40s %.1fs' % (n, first[:40], dt)); hit += 1
+              print('  %-14s %-42s %.1fs' % (n, first[:42], time.time()-t0))
           print()
-          print('命中 %d / 没找到 %d / 误命中 %d' % (hit, miss, wrong))
+          print('== 在线搜索原始返回 ==')
+          for n in ['f0rest','electronic']:
+              try:
+                  print('  %-12s -> %s' % (n, hltv.search_online(n)))
+              except Exception as e:
+                  print('  %-12s -> 失败 %s' % (n, str(e)[:60]))
+          print()
+          print('== 再确认没回归 ==')
+          for n in ['donk','天禄','你好','赛事推送','世界排名']:
+              r = main._smart_ask(cfg, n, '') or ''
+              print('  %-12s -> %s' % (n, r.strip().split(chr(10))[0][:44]))
           PYEOF
       - name: commit
         run: |
           git config user.name "cs-bot"
           git config user.email "bot@users.noreply.github.com"
           git add speed.txt
-          git commit -m "smartask test" || true
+          git commit -m "online search test" || true
           git push || true
