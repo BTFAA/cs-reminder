@@ -1,0 +1,20 @@
+字典: 706 人
+
+== 之前找不到的 ==
+  f0rest         👤 f0rest · 选手数据                            10.3s
+  olofmeister    👤 olofmeister · 选手数据                       9.5s
+  shox           👤 shox · 选手数据                              8.6s
+  flusha         👤 flusha · 选手数据                            27.0s
+  dupreeh        👤 dupreeh · 选手数据                           49.0s
+  electronic     👤 electronic · 选手数据                        27.4s
+
+== 在线搜索原始返回 ==
+  f0rest       -> {'id': '29', 'slug': 'f0rest', 'name': 'f0rest'}
+  electronic   -> {'id': '8918', 'slug': 'electronic', 'name': 'electronic'}
+
+== 再确认没回归 ==
+  donk         -> 👤 donk · 选手数据
+  天禄           -> 🏆 TYLOO（天禄） · 战队数据
+  你好           -> 没看懂「你好」😅
+  赛事推送         -> 📺 CS2 赛程 · 10月1日
+  世界排名         -> 🏆 HLTV 世界排名（前 10）
