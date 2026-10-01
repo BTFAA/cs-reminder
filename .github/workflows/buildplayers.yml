@@ -1,0 +1,34 @@
+name: buildplayers
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 恢复缓存
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: cs-data-${{ github.run_id }}
+          restore-keys: |
+            cs-data-
+      - name: 全量构建选手索引
+        run: |
+          : > buildlog.txt
+          python run.py --build-players 60 2>&1 | tee -a buildlog.txt
+          echo '--- 汇总 ---' >> buildlog.txt
+          python -c "import json;d=json.load(open('data/hltv_players_all.json',encoding='utf-8'));print('总人数:',len(d))" >> buildlog.txt 2>&1
+      - name: commit
+        run: |
+          git config user.name "cs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add buildlog.txt
+          git commit -m "build players" || true
+          git push || true

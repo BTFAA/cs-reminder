@@ -414,45 +414,53 @@ def _smart_ask(cfg, text: str, target: str = "", is_group: bool = False) -> str:
 
 
 def build_players_cmd(cfg, args) -> int:
-    """从 HLTV 抓「活跃选手」总表，建成 名字 -> HLTV id/slug 的大字典。"""
+    """把 HLTV 所有能拿的选手列表合并成一个大字典。"""
     import json as _json
     import time as _t
     from .sources import hltv
 
-    limit = int(args.build_players)
-    if limit <= 0:
-        limit = 999
+    limit = int(args.build_players) or 40
+    players = hltv.all_players()
+    _log(cfg, "已有 %d 人，继续补充" % len(players))
 
-    players = {}
-    try:
-        with open(hltv._data_dir() + "/hltv_players_all.json", "r", encoding="utf-8") as f:
-            players = json.load(f)
-        _log(cfg, "已有 %d 人，继续补充" % len(players))
-    except Exception:
-        players = {}
+    # 数据源：活跃 / 退役 / 各月选手排名
+    sources = ["players/archive/active", "players/archive/retired"]
+    for ym in ("2026/september", "2026/august", "2026/july", "2026/june"):
+        sources.append("ranking/players/" + ym)
 
     t0 = _t.time()
-    for page in range(1, limit + 1):
-        path = "players/archive/active" + (("?page=%d" % page) if page > 1 else "")
-        try:
-            txt = hltv._jina(path, retries=3)
-        except Exception as e:
-            _log(cfg, "  第 %d 页失败：%s" % (page, str(e)[:90]))
-            continue
-        pairs = re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt)
-        before = len(players)
-        for pid, slug in pairs:
-            players.setdefault(slug, {"id": pid, "slug": slug, "name": slug})
-        got = len(players) - before
-        _log(cfg, "  第 %2d 页：本页 %d 条，新增 %d，累计 %d（%.0fs）"
-             % (page, len(pairs), got, len(players), _t.time() - t0))
-        if not pairs or got == 0:
-            _log(cfg, "  没有新数据了，停止翻页")
-            break
-        _t.sleep(1)
+    for src in sources:
+        maxp = limit if "archive" in src else 1
+        for page in range(1, maxp + 1):
+            path = src + (("?page=%d" % page) if page > 1 else "")
+            try:
+                txt = hltv._jina(path, retries=2)
+            except Exception as e:
+                _log(cfg, "  %-28s 第%d页 失败：%s" % (src, page, str(e)[:60]))
+                break
+            pairs = re.findall(r"hltv\.org/player/(\d+)/([a-z0-9\-]+)", txt)
+            if not pairs:
+                break
+            before = len(players)
+            for pid, slug in pairs:
+                players.setdefault(slug, {"id": pid, "slug": slug, "name": slug})
+            got = len(players) - before
+            _log(cfg, "  %-28s 第%2d页 +%-4d 累计 %-5d (%.0fs)"
+                 % (src.split("/")[-1], page, got, len(players), _t.time() - t0))
+            if not pairs:
+                break
+            _t.sleep(1)
+    # 再从项目里已有的 BLAST 选手索引补一批
+    try:
+        from .sources import blastteams
+        pi = blastteams.load_player_index(cfg)
+        for k, v in pi.items():
+            players.setdefault(v.get("slug") or k, {"id": "", "slug": v.get("slug") or k, "name": v.get("name") or k})
+        _log(cfg, "  合并 BLAST 选手索引，累计 %d" % len(players))
+    except Exception as e:
+        _log(cfg, "  BLAST 合并失败：%s" % str(e)[:60])
 
-    with open(hltv._data_dir() + "/hltv_players_all.json", "w", encoding="utf-8") as f:
-        json.dump(players, f, ensure_ascii=False)
+    hltv.save_all_players(players)
     _log(cfg, "完成：共 %d 名选手，总耗时 %.0f 秒" % (len(players), _t.time() - t0))
     return 0
 
@@ -620,14 +628,26 @@ def _player_cmd(cfg, name: str) -> str:
         return ("要查哪位选手？这样发：\n\n"
                 "  查询选手数据 Jee\n"
                 "  查询选手数据 ZywOo")
+    p = None
     try:
         p = blastteams.find_player(cfg, name)
-    except Exception as e:
-        return "抓取选手数据失败：%s" % str(e)[:120]
+    except Exception:
+        p = None
+    # 本地索引没有？用 HLTV 全量选手字典兜底（收录几千人）
+    if not p:
+        try:
+            from .sources import hltv
+            hp = hltv.find_player(name)
+            if hp:
+                p = {"name": hp.get("name") or name, "slug": hp.get("slug") or name,
+                     "id": hp.get("id", ""), "real": "", "country": "", "team": "",
+                     "team_slug": "", "team_rank": "", "_from_hltv_only": True}
+        except Exception:
+            p = None
     if not p:
         return ("没查到「%s」这位选手 😕\n\n"
-                "用比赛里的 ID 试试（比如 Jee、ZywOo、donk），\n"
-                "或者先发「查询战队数据 天禄」看看阵容。" % name)
+                "试试比赛里的 ID（Jee、ZywOo、donk、sh1ro…），\n"
+                "中文队名也行：天禄 / 小蜜蜂 / 绿龙" % name)
     from concurrent.futures import ThreadPoolExecutor
     team, hp = {}, None
     with ThreadPoolExecutor(max_workers=2) as ex:

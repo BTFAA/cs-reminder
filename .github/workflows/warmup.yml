@@ -32,4 +32,6 @@ jobs:
         env:
           QQ_APPID: ${{ secrets.QQ_APPID }}
           QQ_SECRET: ${{ secrets.QQ_SECRET }}
-        run: python run.py --warm
+        run: |
+          python run.py --warm
+          python run.py --build-players 3 2>&1 | tail -20 || true

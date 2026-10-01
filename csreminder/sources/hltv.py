@@ -279,6 +279,67 @@ def player_stats(slug: str, force: bool = False) -> dict:
     return out
 
 
+def all_players() -> dict:
+    """全量选手字典 {小写名: {id, slug, name}}（由 --build-players 生成）"""
+    return _cache_get("hltv_players_all.json", 86400 * 30) or {}
+
+
+def save_all_players(d: dict):
+    _cache_put("hltv_players_all.json", d)
+
+
+def find_player(name: str) -> dict:
+    """在全量字典里找选手，支持错别字/大小写。"""
+    q = (name or "").strip().lower().replace(" ", "")
+    if not q:
+        return {}
+    d = all_players()
+    if not d:
+        return {}
+    if q in d:
+        return d[q]
+    # 前缀匹配
+    starts = [k for k in d if k.startswith(q)]
+    if len(starts) == 1:
+        return d[starts[0]]
+    # 包含匹配
+    has = [k for k in d if q in k]
+    if len(has) == 1:
+        return d[has[0]]
+    # 模糊：编辑距离 <= 1（名字短）或 <= 2
+    best = None
+    for k in d:
+        if abs(len(k) - len(q)) > 2:
+            continue
+        dist = levenshtein(q, k, cap=2)
+        lim = 1 if len(q) <= 5 else 2
+        if dist <= lim:
+            score = (dist, -len(k))
+            if best is None or score < best[0]:
+                best = (score, k)
+    return d[best[1]] if best else {}
+
+
+def levenshtein(a: str, b: str, cap: int = 3) -> int:
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        best = i
+        for j, cb in enumerate(b, 1):
+            v = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb))
+            cur.append(v)
+            if v < best:
+                best = v
+        if best > cap:
+            return cap + 1
+        prev = cur
+    return prev[-1]
+
+
 def _player_id(slug: str) -> str:
     """HLTV 选手页 URL 需要数字 id。排名页里带着所有前 30 队的阵容链接，够用。"""
     slug = slug.strip().lower()
