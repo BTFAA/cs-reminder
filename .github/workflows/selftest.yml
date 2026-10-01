@@ -6,7 +6,7 @@ permissions:
 jobs:
   t:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,28 +19,49 @@ jobs:
           key: cs-data-${{ github.run_id }}
           restore-keys: |
             cs-data-
-      - name: 计时测试
+      - name: 选手查找测试
         env:
           QQ_APPID: ${{ secrets.QQ_APPID }}
           QQ_SECRET: ${{ secrets.QQ_SECRET }}
         run: |
           : > speed.txt
-          echo "缓存状态：" >> speed.txt
-          ls -la data/ 2>/dev/null >> speed.txt || echo "  (无缓存，本次是冷启动)" >> speed.txt
-          echo >> speed.txt
-          for q in "天禄" "donk" "世界排名" "天禄下一场打谁" "绿龙最近赢了吗" "对比 donk ZywOo"; do
-            s=$(date +%s.%N)
-            out=$(timeout 260 python run.py --ask "$q" 2>&1)
-            e=$(date +%s.%N)
-            echo "##### $q   耗时 $(echo "$e - $s" | bc) 秒 #####" >> speed.txt
-            echo "$out" | head -25 >> speed.txt
-            echo >> speed.txt
-          done
-          cat speed.txt
+          python - << 'PYEOF' 2>&1 | tee -a speed.txt
+          import sys, time
+          sys.path.insert(0, '.')
+          from csreminder import config as cfgmod, main
+          from csreminder.sources import hltv, blastteams
+          cfg = cfgmod.load()
+          d = hltv.all_players()
+          print('全量字典人数:', len(d))
+          print()
+          NAMES = ['donk','ZywOo','s1mple','NiKo','m0NESY','device','dupreeh',
+                   'GeT_RiGhT','f0rest','olofmeister','sh1ro','Jee','JamYoung',
+                   'electronic','b1t','Perfecto','Twistzz','EliGE','NAF','ropz',
+                   'apEX','flameZ','mezii','magixx','zont1x','tN1R','sh1ro',
+                   'DONK','zywoo','simble','niko']
+          hit = miss = 0
+          for n in NAMES:
+              t0 = time.time()
+              p = blastteams.find_player(cfg, n)
+              src = 'BLAST'
+              if not p:
+                  hp = hltv.find_player(n)
+                  if hp:
+                      p, src = hp, 'HLTV'
+              dt = time.time() - t0
+              if p:
+                  print('✅ %-14s -> %-22s [%s] %.2fs' % (n, p.get('name') or p.get('slug'), src, dt))
+                  hit += 1
+              else:
+                  print('❌ %-14s -> 没找到' % n)
+                  miss += 1
+          print()
+          print('命中 %d / 未命中 %d' % (hit, miss))
+          PYEOF
       - name: commit
         run: |
           git config user.name "cs-bot"
           git config user.email "bot@users.noreply.github.com"
           git add speed.txt
-          git commit -m "speed test" || true
+          git commit -m "player lookup test" || true
           git push || true
